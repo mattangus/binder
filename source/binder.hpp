@@ -24,6 +24,8 @@
 #include <unordered_map>
 #include <vector>
 
+using llvm::outs;
+
 namespace binder {
 
 class Config;
@@ -78,10 +80,16 @@ public:
 	bool skipping_requested() const { return skipping_requested_; };
 
 	/// request bindings for this generator
-	void request_bindings() { binding_requested_ = true; }
+	void request_bindings() { 
+		outs() << "requesting bindings for " << id() << "\n";
+		binding_requested_ = true;
+	}
 
 	/// request skipping for this generator
-	void request_skipping() { skipping_requested_ = true; }
+	void request_skipping() {
+		outs() << "requesting skip for " << id() << "\n";
+		skipping_requested_ = true;
+	}
 
 	/// check if user supplied config requested binding for the given declaration and if so request it
 	virtual void request_bindings_and_skipping(Config const &) = 0;

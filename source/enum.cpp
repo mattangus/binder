@@ -44,6 +44,7 @@ void add_relevant_includes(clang::EnumDecl const *E, IncludeSet &includes, int l
 /// check if generator can create binding
 bool is_bindable(EnumDecl const *E)
 {
+	outs() << "checking if EnumDecl is bindable\n";
 	// if( E->isCXXInstanceMember()  or  E->isCXXClassMember() ) return false;
 	// else return true;
 
@@ -52,6 +53,8 @@ bool is_bindable(EnumDecl const *E)
 	string name = E->getNameAsString(); // getQualifiedNameAsString(); //
 	// if( name.rfind(')') != string::npos ) return false; // checking that this is not an "(anonymous)" enum
 	if( name.empty() or name.rfind(')') != string::npos ) return false; // checking that this is not an "(anonymous)" enum
+
+	outs() << E->getQualifiedNameAsString() << " is bindable!\n";
 
 	return true;
 }
@@ -128,7 +131,11 @@ bool EnumBinder::bindable() const
 /// check if user requested binding for the given declaration
 void EnumBinder::request_bindings_and_skipping(Config const &config)
 {
-	if( config.is_namespace_binding_requested(namespace_from_named_decl(E)) ) Binder::request_bindings();
+	outs() << "request or skip enum\n";
+	if( config.is_namespace_binding_requested(namespace_from_named_decl(E)) ) {
+		outs() << "enum request bindings\n";
+		Binder::request_bindings();
+	}
 }
 
 

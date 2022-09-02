@@ -460,7 +460,10 @@ bool is_bindable_raw(FunctionDecl const *F)
 	auto closing_bracket = qualified_name.rfind(')');
 	if( closing_bracket != std::string::npos ) {
 		if( closing_bracket > 0 and qualified_name[closing_bracket - 1] == '(' ) {} // operator()
-		else return false;
+		else {
+			outs() << qualified_name << " is operator()\n";
+			return false;
+		}
 	}
 
 	// bool r = true;
@@ -468,33 +471,63 @@ bool is_bindable_raw(FunctionDecl const *F)
 
 	if( F->isOverloadedOperator() ) {
 		// outs() << "Operator: " << F->getNameAsString() << '\n';
-		if( !isa<CXXMethodDecl>(F) or !cpp_python_operator_map.count(F->getNameAsString()) ) return false;
+		if( !isa<CXXMethodDecl>(F) or !cpp_python_operator_map.count(F->getNameAsString()) )
+		{
+			outs() << qualified_name << " is operator\n";
+			return false;
+		}
 	}
 
-	r &= F->getTemplatedKind() != FunctionDecl::TK_FunctionTemplate /*and  !F->isOverloadedOperator()*/ and !isa<CXXConversionDecl>(F) and !F->isDeleted();
+	bool is_deleted = F->getTemplatedKind() != FunctionDecl::TK_FunctionTemplate /*and  !F->isOverloadedOperator()*/ and !isa<CXXConversionDecl>(F) and !F->isDeleted();
+	if (!is_deleted) {
+		outs() << qualified_name << " is deleted\n";
+		return false;
+	}
 
 	QualType rt(F->getReturnType());
 
-	r &= is_bindable(rt);
+	bool rt_bindable = is_bindable(rt);
+	if (!rt_bindable) {
+		outs() << qualified_name << " return type is not bindable\n";
+		return false;
+	}
 
-	for( auto p = F->param_begin(); p != F->param_end(); ++p ) r &= is_bindable((*p)->getOriginalType().getCanonicalType());
+	bool params_bindable = true;
+	for( auto p = F->param_begin(); p != F->param_end(); ++p ) params_bindable &= is_bindable((*p)->getOriginalType().getCanonicalType());
 	// outs() << "is_bindable: " << F->getQualifiedNameAsString() << " " << r << "\n";
+	if (!params_bindable) {
+		outs() << qualified_name << " params are not bindable\n";
+		return false;
+	}
 
-	if( r && is_banned_symbol(F) ) return false;
+	r &= is_deleted & rt_bindable & params_bindable;
+
+	if( r && is_banned_symbol(F) ) {
+		outs() << qualified_name << " is banned symbol\n";
+		return false;
+	}
+	if (r) {
+		outs() << qualified_name << " is bindable!\n";
+	}
+	else {
+		outs() << qualified_name << " is not bindable\n";
+	}
 	return r;
 }
 
 /// check if generator can create binding
 bool is_bindable(FunctionDecl const *F)
 {
-	static llvm::DenseMap<FunctionDecl const *, bool> cache;
-	auto it = cache.find(F);
-	if( it != cache.end() ) return it->second;
-	else {
-		bool r = is_bindable_raw(F);
-		cache.insert( {F, r} );
-		return r;
-	}
+	outs() << "checking if FunctionDecl " << F->getQualifiedNameAsString() << " is bindable\n";
+	return is_bindable_raw(F);
+	// static llvm::DenseMap<FunctionDecl const *, bool> cache;
+	// auto it = cache.find(F);
+	// if( it != cache.end() ) return it->second;
+	// else {
+	// 	bool r = is_bindable_raw(F);
+	// 	cache.insert( {F, r} );
+	// 	return r;
+	// }
 
 	// static std::map<CXXRecordDecl const *, bool> cache;
 	// auto it = cache.find(C);
@@ -549,8 +582,15 @@ bool FunctionBinder::bindable() const
 /// check if user requested binding for the given declaration
 void FunctionBinder::request_bindings_and_skipping(Config const &config)
 {
-	if( is_skipping_requested(F, config) ) Binder::request_skipping();
-	else if( is_binding_requested(F, config) ) Binder::request_bindings();
+	outs() << "request or skip function\n";
+	if( is_skipping_requested(F, config) ) {
+		outs() << "function binding requested\n";
+		Binder::request_skipping();
+	}
+	else if( is_binding_requested(F, config) )  {
+		outs() << "function skip requested\n";
+		Binder::request_bindings();
+	}
 }
 
 

@@ -389,25 +389,56 @@ void add_relevant_includes(QualType const &qt, /*const ASTContext &context,*/ In
 // check if given QualType is bindable
 bool is_bindable(QualType const &qt)
 {
+	string qt_name = qt.getAsString();
+	outs() << "checking if QualType " << qt_name << " is bindable\n";
 	bool r = true;
 
-	r &= !qt->isFunctionPointerType() and !qt->isRValueReferenceType() and !qt->isInstantiationDependentType() and
-		 !qt->isArrayType(); // and  !qt->isConstantArrayType()  and  !qt->isIncompleteArrayType()  and  !qt->isVariableArrayType()  and  !qt->isDependentSizedArrayType()
-
+	if (qt->isFunctionPointerType())
+	{
+		outs() << qt_name << " is a function pointer type\n";
+		return false;
+	}
+	if (qt->isRValueReferenceType())
+	{
+		outs() << qt_name << " is rvalue reference type\n";
+		return false;
+	}
+	if (qt->isInstantiationDependentType())
+	{
+		outs() << qt_name << " is instantiation dependent type\n";
+		return false;
+	}
+	if (qt->isArrayType())
+	{
+		outs() << qt_name << " is array type\n";
+		return false;
+	}
+	
 	if( clang::PointerType const *pt = dyn_cast<clang::PointerType>(qt.getTypePtr()) ) {
 		QualType pqt = pt->getPointeeType();
 
-		if( pqt->isPointerType() ) return false; // refuse to bind 'value**...' types
+		if( pqt->isPointerType() ) {
+			outs() << qt_name << " is double pointer\n";
+			return false; // refuse to bind 'value**...' types
+		}
 		// if( pqt->isArithmeticType() ) return false;  // refuse to bind 'int*, doublle*...' types
-		if( pqt->isArrayType() or pqt->isConstantArrayType() ) return false; // refuse to bind 'T* v[]...' types
+		if( pqt->isArrayType() or pqt->isConstantArrayType() ) {
+			outs() << qt_name << " is array of pointers\n";
+			return false; // refuse to bind 'T* v[]...' types
+		}
 
 		string pqt_name = standard_name(pqt.getAsString());
 		if( begins_with(pqt_name, "struct std::pair") or begins_with(pqt_name, "const struct std::pair") or begins_with(pqt_name, "class std::tuple") or
-			begins_with(pqt_name, "const class std::tuple") )
+			begins_with(pqt_name, "const class std::tuple") ) {
+			outs() << qt_name << " is pair or tuple\n";
 			return false;
+		}
 		// outs() << pqt_name << "\n";
 		// qt->dump();
-		r &= is_bindable(pt->getPointeeType() /*.getCanonicalType()*/);
+		if (!is_bindable(pt->getPointeeType() /*.getCanonicalType()*/)) {
+			outs() << qt_name << " pointee type is not bindable\n";
+			return false;
+		}
 	}
 
 	if( ReferenceType const *rt = dyn_cast<ReferenceType>(qt.getTypePtr()) ) {
@@ -416,13 +447,19 @@ bool is_bindable(QualType const &qt)
 
 		// special handling for std::pair&  and  std::tuple&  whitch pybind11 can't pass by refference
 		string pqt_name = standard_name(pqt.getAsString());
-		if( begins_with(pqt_name, "struct std::pair") or begins_with(pqt_name, "class std::tuple") ) return false; // but we allow bindings for 'const std::tuple' and 'const std::pair'
+		if( begins_with(pqt_name, "struct std::pair") or begins_with(pqt_name, "class std::tuple") ) {
+			outs() << qt_name << " is a tuple or pair\n";
+			return false; // but we allow bindings for 'const std::tuple' and 'const std::pair'
+		}
 
 		// if( pqt_name == "char"  or  pqt_name == "wchar_t") return false; // WARNING only TEMPORARY, until Pybind11 upstream is fixed
 
 		// rt->dump();
 		// outs() << "Ref " << qt.getAsString() << " -> " << is_bindable( rt->getPointeeType().getCanonicalType() ) << "\n";
-		r &= is_bindable(pqt /*.getCanonicalType()*/);
+		if (!is_bindable(pqt /*.getCanonicalType()*/)) {
+			outs() << qt_name << " reference pointee type not bindable\n";
+			return false;
+		}
 	}
 
 	if( Type const *tp = qt /*.getCanonicalType()*/.getTypePtrOrNull() ) {
@@ -431,10 +468,19 @@ bool is_bindable(QualType const &qt)
 			r &= is_bindable(rd);
 		}
 		if( TagDecl *td = tp->getAsTagDecl() ) {
-			if( td->getAccess() == AS_protected or td->getAccess() == AS_private ) return false;
+			if( td->getAccess() == AS_protected or td->getAccess() == AS_private ) {
+				outs() << qt_name << " tag decl is private or protected\n";
+				return false;
+			}
 		}
 	}
 
+	if (r) {
+		outs() << qt_name << " is bindable!\n";
+	}
+	else {
+		outs() << qt_name << " is not bindable\n";
+	}
 	return r;
 }
 

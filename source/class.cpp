@@ -16,6 +16,7 @@
 #include <options.hpp>
 #include <type.hpp>
 #include <util.hpp>
+#include <iostream>
 
 #include <fmt/format.h>
 
@@ -139,6 +140,7 @@ bool is_field_assignable(FieldDecl const *f)
 /// check if generator can create binding
 bool is_bindable(FieldDecl *f)
 {
+	outs() << "checking if FieldDecl " << f->getQualifiedNameAsString() << " is bindable\n";
 	if( f->getType()->isAnyPointerType() or f->getType()->isReferenceType() or f->getType()->isArrayType() ) return false;
 
 	if( !is_field_assignable(f) ) return false;
@@ -223,14 +225,19 @@ bool is_bindable_raw(clang::CXXRecordDecl const *C);
 /// check if generator can create binding
 bool is_bindable(clang::CXXRecordDecl const *C)
 {
-	static llvm::DenseMap<CXXRecordDecl const *, bool> cache;
-	auto it = cache.find(C);
-	if( it != cache.end() ) return it->second;
-	else {
-		bool r = is_bindable_raw(C);
-		cache.insert( {C, r} );
-		return r;
-	}
+	outs() << "checking if CXXRecordDecl " << C->getQualifiedNameAsString() << " is bindable\n";
+	return is_bindable_raw(C);
+	// static llvm::DenseMap<CXXRecordDecl const *, bool> cache;
+	// auto it = cache.find(C);
+	// if( it != cache.end() ) {
+	// 	// outs() << "found " << C->getQualifiedNameAsString() << " in cache: " << it->second << "\n";
+	// 	return it->second;
+	// }
+	// else {
+	// 	bool r = is_bindable_raw(C);
+	// 	cache.insert( {C, r} );
+	// 	return r;
+	// }
 
 	// static std::map<CXXRecordDecl const *, bool> cache;
 	// auto it = cache.find(C);
@@ -269,34 +276,59 @@ bool is_bindable_raw(clang::CXXRecordDecl const *C)
 
 	// disabling bindings for anonymous namespace's
 	// if( qualified_name.rfind("(anonymous namespace)") != std::string::npos ) return false;
-	if( C->isInAnonymousNamespace() ) return false;
+	if( C->isInAnonymousNamespace() ) {
+		outs() << qualified_name << "is In Anonymous Namespace\n";
+		return false;
+	}
 	// if( C->isAnonymousStructOrUnion() ) return false;
-	if( !C->hasNameForLinkage() and !C->isCXXClassMember() ) return false;
+	if( !C->hasNameForLinkage() and !C->isCXXClassMember() ) {
+		outs() << qualified_name << " has no name or not class member\n";
+		return false;
+	}
 
 	bool anonymous_name = qualified_name.rfind(')') != std::string::npos; // check if type name is "(anonymous)"
-	if( anonymous_name and C->hasNameForLinkage() ) return false;
-	if( anonymous_name and !C->hasNameForLinkage() and !C->isAnonymousStructOrUnion() ) return false;
+	if( anonymous_name and C->hasNameForLinkage() ) {
+		outs() << qualified_name << " has name for linkage\n";
+		return false;
+	}
+	if( anonymous_name and !C->hasNameForLinkage() and !C->isAnonymousStructOrUnion() ) {
+		outs() << qualified_name << " has name for linkage or is anynomous struct or union\n";
+		return false;
+	}
 
 	// if( C->isAnonymousStructOrUnion() and C->hasNameForLinkage() ) return false;
 
 	// outs() << qualified_name << ": anonymous_name:" << anonymous_name << " isAnonymousStructOrUnion: " << C->isAnonymousStructOrUnion() << " hasNameForLinkage:" << C->hasNameForLinkage() << "\n";
 
-	if( C->isDependentType() ) return false;
-	if( C->getAccess() == AS_protected or C->getAccess() == AS_private ) return false;
+	if( C->isDependentType() ) {
+		outs() << qualified_name << " is dependent type\n";
+		return false;
+	}
+	if( C->getAccess() == AS_protected or C->getAccess() == AS_private ) {
+		outs() << qualified_name << " is protect or private\n";
+		return false;
+	}
 
 	if( !C->isCompleteDefinition() ) {
 		if( auto ts = dyn_cast<ClassTemplateSpecializationDecl>(C) ) {
 			if( qualified_name == "std::function" ) {
-				if( not is_std_function_bindable(C) ) return false;
+				if( not is_std_function_bindable(C) ) {
+					outs() << qualified_name << " std::function not bindable\n";
+					return false;
+				}
 			}
 			else {
 				if( ts->getPointOfInstantiation() /* SourceLocation */.isInvalid() and not is_python_builtin(C) ) {
 					// outs() << "is_bindable( " << qualified_name << " " << class_qualified_name(C) << " ): no point of instantiation  found, skipping...\n";
+					outs() << qualified_name << " point of instantiation is invalid\n";
 					return false;
 				}
 			}
 		}
-		else return false;
+		else {
+			outs() << qualified_name << " is not a ClassTemplateSpecializationDecl\n";
+			return false;
+		}
 	}
 
 	// if( auto t = dyn_cast<ClassTemplateSpecializationDecl>(C) ) {
@@ -325,7 +357,17 @@ bool is_bindable_raw(clang::CXXRecordDecl const *C)
 	// 	}
 	// }
 
-	if( r && is_banned_symbol(C) ) return false;
+	if( r && is_banned_symbol(C) ) {
+		outs() << qualified_name << " is a banned symbol\n";
+		return false;
+	}
+
+	if (r) {
+		outs() << qualified_name << " is bindable!\n";
+	}
+	else {
+		outs() << qualified_name << " is not bindable\n";
+	}
 
 	return r;
 }
@@ -333,10 +375,25 @@ bool is_bindable_raw(clang::CXXRecordDecl const *C)
 /// check if user requested binding for the given declaration
 bool is_binding_requested(clang::CXXRecordDecl const *C, Config const &config)
 {
-	bool bind = config.is_class_binding_requested(standard_name(C->getQualifiedNameAsString())) or config.is_class_binding_requested(class_qualified_name(C)) or
+	// if( dyn_cast<ClassTemplateSpecializationDecl>(C) ) { 
+	// 	outs() << "class is not ClassTemplateSpecializationDecl\n";
+	// 	outs() << standard_name(C->getQualifiedNameAsString()) << "\n";
+	// 	outs() << standard_name(class_qualified_name(C)) << "\n";
+	// 	outs() << standard_name(namespace_from_named_decl(C)) << "\n";
+	// 	return false;
+	// }
+
+	outs() << "class binding standard name: " << config.is_class_binding_requested(standard_name(C->getQualifiedNameAsString())) << "\n";
+	outs() << "class binding qualified name: " << config.is_class_binding_requested(class_qualified_name(C))  << "\n";
+	outs() << "class binding namespace name: " << config.is_namespace_binding_requested(namespace_from_named_decl(C)) << "\n";
+	
+	bool bind = config.is_class_binding_requested(standard_name(C->getQualifiedNameAsString())) or
+				config.is_class_binding_requested(class_qualified_name(C)) or
 				config.is_namespace_binding_requested(namespace_from_named_decl(C));
-	for( auto &t : get_type_dependencies(C) ) bind &= !is_skipping_requested(t, config);
-	return bind;
+	bool dep_not_skip = true;
+	for( auto &t : get_type_dependencies(C) ) dep_not_skip &= !is_skipping_requested(t, config);
+
+	return bind && dep_not_skip;
 }
 
 // check if user requested skipping for the given declaration
@@ -514,8 +571,15 @@ bool ClassBinder::bindable() const
 /// check if user requested binding for the given declaration
 void ClassBinder::request_bindings_and_skipping(Config const &config)
 {
-	if( is_skipping_requested(C, config) ) Binder::request_skipping();
-	else if( is_binding_requested(C, config) ) Binder::request_bindings();
+	outs() << "request or skip class\n";
+	if( is_skipping_requested(C, config) ) {
+		outs() << "request skipping of class\n";
+		Binder::request_skipping();
+	}
+	else if( is_binding_requested(C, config) ) {
+		outs() << "request bindings of class\n";
+		Binder::request_bindings();
+	}
 }
 
 
@@ -549,7 +613,10 @@ string binding_public_data_members(CXXRecordDecl const *C)
 				for( auto s = u->shadow_begin(); s != u->shadow_end(); ++s ) {
 					if( UsingShadowDecl *us = dyn_cast<UsingShadowDecl>(*s) ) {
 						if( FieldDecl *f = dyn_cast<FieldDecl>(us->getTargetDecl()) ) {
-							if( is_bindable(f) ) c += "\tcl" + bind_data_member(f, class_qualified_name(C)) + ";\n";
+							if( is_bindable(f) ) { 
+								outs() << "generating code for using data member: " << f->getQualifiedNameAsString() << "\n";
+								c += "\tcl" + bind_data_member(f, class_qualified_name(C)) + ";\n";
+							}
 						}
 					}
 				}
@@ -559,7 +626,10 @@ string binding_public_data_members(CXXRecordDecl const *C)
 
 	for( auto d = C->decls_begin(); d != C->decls_end(); ++d ) {
 		if( FieldDecl *f = dyn_cast<FieldDecl>(*d) ) {
-			if( f->getAccess() == AS_public and is_bindable(f) ) c += "\tcl" + bind_data_member(f, class_qualified_name(C)) + ";\n";
+			if( f->getAccess() == AS_public and is_bindable(f) ) {
+				outs() << "generating code for data member: " << f->getQualifiedNameAsString() << "\n";
+				c += "\tcl" + bind_data_member(f, class_qualified_name(C)) + ";\n";
+			}
 		}
 	}
 	return c;
@@ -576,7 +646,7 @@ inline string callback_structure_name(CXXRecordDecl const *C)
 // Check if binding this class require creation of call-back structure to allow overriding virtual functions in Python
 bool is_callback_structure_needed(CXXRecordDecl const *C)
 {
-	// C->dump();
+	C->dump();
 
 	// check if all pure-virtual methods could be overridden in Python
 	if( C->isAbstract() ) {
@@ -785,6 +855,7 @@ string binding_public_member_functions(CXXRecordDecl const *C, bool callback_str
 	// binding protected/private member functions that was made public in child class by 'using' declaration
 	for( auto d = C->decls_begin(); d != C->decls_end(); ++d ) {
 		if( UsingDecl *u = dyn_cast<UsingDecl>(*d) ) {
+			outs() << "Visiting function: " << u->getQualifiedNameAsString() << "\n";
 			if( u->getAccess() == AS_public ) {
 				for( auto s = u->shadow_begin(); s != u->shadow_end(); ++s ) {
 					if( UsingShadowDecl *us = dyn_cast<UsingShadowDecl>(*s) ) {
@@ -794,6 +865,7 @@ string binding_public_member_functions(CXXRecordDecl const *C, bool callback_str
 								// 'base::' CXXRecordDecl NC(*C); CXXMethodDecl *nm = CXXMethodDecl::Create(m->getParentASTContext(), &NC, m->getLocStart(), m->getNameInfo(), m->getType(),
 								// m->getTypeSourceInfo(), 										  m->getStorageClass(), m->isInlineSpecified(), m->isConstexpr() , m->getLocStart()); it looks like LLVM will
 								// delete this object when parent CXXRecordDecl is destroyed so commenting out for now... // delete nm;
+								outs() << "generating code for using method: " << m->getQualifiedNameAsString() << "\n";
 								c += bind_function("\tcl", m, context, C, /*always_use_lambda=*/true);
 							}
 						}
@@ -805,6 +877,8 @@ string binding_public_member_functions(CXXRecordDecl const *C, bool callback_str
 		if( FunctionTemplateDecl *ft = dyn_cast<FunctionTemplateDecl>(*d) ) {
 			for( auto s = ft->spec_begin(); s != ft->spec_end(); ++s ) {
 				if( CXXMethodDecl *m = dyn_cast<CXXMethodDecl>(*s) ) {
+
+					outs() << "Visiting function: " << m->getQualifiedNameAsString() << "\n";
 					if( m->getAccess() == AS_public //
 						and is_bindable(m) // and  !is_skipping_requested(FunctionDecl const *F, Config const &config)
 						and !is_skipping_requested(m, Config::get()) //
@@ -812,6 +886,7 @@ string binding_public_member_functions(CXXRecordDecl const *C, bool callback_str
 						and !is_const_overload(m) ) { //
 						// m->dump();
 
+						outs() << "generating code for template class method: " << m->getQualifiedNameAsString() << "\n";
 						c += bind_function("\tcl", m, context);
 					}
 				}
@@ -820,14 +895,25 @@ string binding_public_member_functions(CXXRecordDecl const *C, bool callback_str
 	}
 
 	for( auto m = C->method_begin(); m != C->method_end(); ++m ) {
+		// clang::CXXMethodDecl
+		auto bindable = is_bindable(*m);
+		outs() << "Visiting function: " << m->getQualifiedNameAsString() << "\n";
+		outs() << "is bindable? " << bindable << "\n";
+		outs() << "is skipping requested? " << is_skipping_requested(*m, Config::get()) << "\n";
+		outs() << "is not CXXConstructorDecl? " << !isa<CXXConstructorDecl>(*m) << "\n";
+		outs() << "is not CXXDestructorDecl? " << !isa<CXXDestructorDecl>(*m) << "\n";
+		outs() << "is not const overload? " << !is_const_overload(*m) << "\n";
 		if( m->getAccess() == AS_public //
-			and is_bindable(*m) // and  !is_skipping_requested(FunctionDecl const *F, Config const &config)
+			and bindable // and  !is_skipping_requested(FunctionDecl const *F, Config const &config)
 			and !is_skipping_requested(*m, Config::get()) //
 			and !isa<CXXConstructorDecl>(*m) and !isa<CXXDestructorDecl>(*m) //
 			and !is_const_overload(*m) ) { //
 			//(*m)->dump();
-
+			outs() << "generating code for public class method: " << m->getQualifiedNameAsString() << "\n";
 			c += bind_function("\tcl", *m, context);
+		}
+		else {
+			outs() << "skipping" << "\n";
 		}
 	}
 

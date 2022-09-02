@@ -251,7 +251,13 @@ void Context::bind(Config const &config)
 {
 	for( auto &sp : binders ) {
 		Binder &b(*sp);
-		if( !b.is_in_system_header() and b.bindable() ) b.request_bindings_and_skipping(config);
+		outs() << "flagging binding for " << b.id() << "\n";
+		auto syshead = !b.is_in_system_header();
+		auto bindable = b.bindable();
+		outs() << "sys header " << syshead << "\n";
+		outs() << "bindable " << bindable << "\n";
+		if( syshead && bindable )
+			b.request_bindings_and_skipping(config);
 	}
 
 	bool flag = true;
@@ -267,6 +273,15 @@ void Context::bind(Config const &config)
 				if( O_verbose ) outs() << "Binding: " << b.id() /*named_decl()->getQualifiedNameAsString()*/ << "\n";
 				b.bind(*this);
 				flag = true;
+			}
+			else {
+				if (O_verbose) {
+					const auto bindable = b.bindable();
+					outs() << "Skipping: " << b.id() << "\n"
+						<< "is_binded: " <<  b.is_binded() << "\n"
+						<< "bindable: " <<  bindable << "\n"
+						<< "binding_requested: " <<  b.binding_requested() << "\n";
+				}
 			}
 		}
 

@@ -76,11 +76,26 @@ string wrap_CXXRecordDecl(CXXRecordDecl *R)
 	return "";
 }
 
+std::string getFullyQualified(const Expr *expr,
+                                          const ASTContext &Context) {
+  static PrintingPolicy print_policy(Context.getLangOpts());
+  print_policy.FullyQualifiedName = 1;
+  print_policy.SuppressScope = 0;
+  print_policy.PrintCanonicalTypes = 1;
+
+
+  std::string expr_string;
+  llvm::raw_string_ostream stream(expr_string);
+  expr->printPretty(stream, nullptr, print_policy);
+  stream.flush();
+  return expr_string;
+}
+
 
 class BinderVisitor : public RecursiveASTVisitor<BinderVisitor>
 {
 public:
-	explicit BinderVisitor(CompilerInstance *ci) : ast_context(&(ci->getASTContext()))
+	explicit BinderVisitor(CompilerInstance *ci) : ast_context(&(ci->getASTContext())), policy(ci->getLangOpts())
 	{
 		Config &config = Config::get();
 
@@ -108,6 +123,7 @@ public:
 
 	virtual bool VisitFunctionDecl(FunctionDecl *F)
 	{
+		// outs() << "Visiting function: " << F->getNameInfo().getName().getAsString() << "\n";
 		if( F->isCXXInstanceMember() or isa<CXXMethodDecl>(F) ) return true;
 
 		if( binder::is_bindable(F) ) {
@@ -124,6 +140,7 @@ public:
 
 	virtual bool VisitCXXRecordDecl(CXXRecordDecl *C)
 	{
+		outs() << "Visiting class: " << QualType::getAsString(ast_context->getTypeDeclType(const_cast<CXXRecordDecl*>(C)).split(), policy) << "\n";
 		if( C->isCXXInstanceMember() or C->isCXXClassMember() ) return true;
 
 		if( binder::is_bindable(C) ) {
@@ -189,6 +206,7 @@ private:
 	ASTContext *ast_context;
 
 	binder::Context context;
+	PrintingPolicy policy;
 };
 
 
