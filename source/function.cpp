@@ -295,8 +295,15 @@ bool is_binding_requested(FunctionDecl const *F, Config const &config)
 bool is_skipping_requested(FunctionDecl const *F, Config const &config)
 {
 	string name = standard_name(F->getQualifiedNameAsString());
+	auto nspace = namespace_from_named_decl(F);
+
 	bool skip =
-		config.is_function_skipping_requested(name) or config.is_function_skipping_requested(function_qualified_name(F, true)) or config.is_namespace_skipping_requested(namespace_from_named_decl(F));
+		config.is_function_skipping_requested(name) or
+		config.is_function_skipping_requested(function_qualified_name(F, true)) or
+		(
+			config.is_namespace_skipping_requested(nspace)
+			and !config.is_namespace_external(nspace)
+		);
 
 	// moved to config -> name.erase(std::remove(name.begin(), name.end(), ' '), name.end());
 	skip |= config.is_function_skipping_requested(name);

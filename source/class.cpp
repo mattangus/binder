@@ -342,11 +342,22 @@ bool is_binding_requested(clang::CXXRecordDecl const *C, Config const &config)
 // check if user requested skipping for the given declaration
 bool is_skipping_requested(clang::CXXRecordDecl const *C, Config const &config)
 {
+	auto nspace = namespace_from_named_decl(C);
 	bool skip = //
 		config.is_class_skipping_requested(standard_name(C->getQualifiedNameAsString())) or //
 		config.is_class_skipping_requested(class_qualified_name(C)) or //
-		config.is_namespace_skipping_requested(namespace_from_named_decl(C)); //
+		(
+			config.is_namespace_skipping_requested(nspace)
+			and !config.is_namespace_external(nspace)
+		); //
 
+	outs() << "standard name: " << standard_name(C->getQualifiedNameAsString()) << "\n";
+	outs() << "qualified name: " << class_qualified_name(C) << "\n";
+	outs() << "namespace: " << nspace << "\n";
+	outs() << "is_class_skipping_requested standard: " << config.is_class_skipping_requested(standard_name(C->getQualifiedNameAsString())) << "\n"
+		<< "is_class_skipping_requested: " << config.is_class_skipping_requested(class_qualified_name(C)) << "\n"
+		<< "is_namespace_skipping_requested: " << config.is_namespace_skipping_requested(nspace) << "\n"
+		<< "is_namespace_external: " << config.is_namespace_external(nspace) << "\n";
 	for( auto &t : get_type_dependencies(C) ) skip |= is_skipping_requested(t, config);
 
 	return skip;

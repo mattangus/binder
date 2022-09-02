@@ -54,6 +54,7 @@ void Config::read(string const &file_name)
 {
 	if( O_verbose ) outs() << "Read config from file " << file_name << "\n";
 	string const _namespace_{"namespace"};
+	string const _external_namespace_{"external_namespace"};
 	string const _function_{"function"};
 	string const _class_{"class"};
 
@@ -108,6 +109,10 @@ void Config::read(string const &file_name)
 
 			if( bind ) namespaces_to_bind.push_back(name_without_spaces);
 			else namespaces_to_skip.push_back(name_without_spaces);
+		}
+		else if (token == _external_namespace_)
+		{
+			if (bind) external_namespaces.push_back(name_without_spaces);
 		}
 		else if( token == _class_ ) {
 
@@ -187,6 +192,9 @@ void Config::read(string const &file_name)
 									 "' Line: '" + line + '\'');
 		}
 	}
+
+	for(const auto& v : classes_to_bind)
+		outs() << "binding class: " << v << "\n";
 }
 
 
@@ -255,6 +263,22 @@ bool Config::is_namespace_skipping_requested(string const &namespace_) const
 		throw std::runtime_error("Could not determent if namespace '" + namespace_ + "' should be binded or not... please check if options --bind and --skip conflicting!!!");
 
 	if( to_skip_flag ) return true;
+
+	return false;
+}
+
+bool Config::is_namespace_external(string const &namespace_) const
+{
+	bool to_bind_flag = false, to_skip_flag = false;
+	string to_bind, to_skip;
+
+	for( auto &n : external_namespaces ) {
+		if( begins_with(namespace_, n) ) {
+			if( n.size() > to_bind.size() ) {
+				return true;
+			}
+		}
+	}
 
 	return false;
 }
