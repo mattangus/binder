@@ -70,7 +70,7 @@ bool is_skipping_requested(QualType const &qt, Config const &config)
 // check if type some form of function-type (function type, function-pointer, function-reference, ...)
 bool is_function_type(QualType const &qt)
 {
-	if( auto f = dyn_cast<clang::FunctionType>(qt.getTypePtr()) ) return true;
+	if( dyn_cast<clang::FunctionType>(qt.getTypePtr()) ) return true;
 	if( clang::PointerType const *pt = dyn_cast<clang::PointerType>(qt.getTypePtr()) ) return is_function_type(pt->getPointeeType());
 	if( ReferenceType const *rt = dyn_cast<ReferenceType>(qt.getTypePtr()) ) return is_function_type(rt->getPointeeType());
 	return false;
@@ -653,13 +653,13 @@ bool is_python_builtin(NamedDecl const *C)
 	string name = standard_name(C->getQualifiedNameAsString());
 	// if( begins_with(name, "class ") ) name = name.substr(6); // len("class ")
 
-	static std::vector<string> const known_builtin = {
+	static std::set<string> const known_builtin = {
 		//"std::nullptr_t", "nullptr_t",
 		"std::basic_string", "std::initializer_list", "std::__1::basic_string",
 
 		"std::allocator", "std::__allocator_destructor",
 
-		"std::shared_ptr", "std::enable_shared_from_this", "std::__shared_ptr", // "std::weak_ptr",  "std::__weak_ptr"
+		Config::get().holder_type(), "std::shared_ptr", "std::enable_shared_from_this", "std::__shared_ptr", // "std::weak_ptr",  "std::__weak_ptr"
 		"std::unique_ptr",
 		//"std::__1::shared_ptr", "std::__1::weak_ptr", "std::__1::allocator",
 
@@ -682,12 +682,72 @@ bool is_python_builtin(NamedDecl const *C)
 
 		"std::__hash_value_type",
 
-		"std::function", "std::complex"};
+		"std::function", "std::complex",
 
-	for( auto &k : known_builtin ) {
-		// if( begins_with(name, k) ) return true;
-		if( name == k ) return true;
-	}
+		// pybind11 types
+		// https://pybind11.readthedocs.io/en/stable/advanced/pycpp/object.html
+		// https://pybind11.readthedocs.io/en/stable/reference.html
+		"pybind11::handle",
+		"pybind11::object",
+		"pybind11::module_",
+		"pybind11::iterator",
+		"pybind11::type",
+		"pybind11::iterable",
+		"pybind11::str",
+		"pybind11::bytes",
+		"pybind11::bytesarray",
+		"pybind11::none",
+		"pybind11::ellipsis",
+		"pybind11::bool_",
+		"pybind11::int_",
+		"pybind11::float_",
+		"pybind11::weakref",
+		"pybind11::slice",
+		"pybind11::capsule",
+		"pybind11::tuple",
+		"pybind11::args",
+		"pybind11::dict",
+		"pybind11::kwargs",
+		"pybind11::sequence",
+		"pybind11::list",
+		"pybind11::anyset",
+		"pybind11::frozenset",
+		"pybind11::set",
+		"pybind11::function",
+		"pybind11::cpp_function",
+		"pybind11::staticmethod",
+		"pybind11::buffer",
+		"pybind11::memoryview",
+		"pybind11::array",
+		"pybind11::array_t",
+	};
+
+	static std::set<string> const stl_builtin = {
+		"std::vector",
+		"std::deque",
+		"std::list",
+		"std::array",
+		"std::valarray",
+		"std::set",
+		"std::unordered_set",
+		"std::map",
+		"std::unordered_map",
+		// C++14
+		"std::experimental::optional",
+		// C++17
+		"std::optional",
+		"std::variant",
+	};
+
+	// Not builtin's
+	if (Config::get().not_python_builtins.count(name))
+		return false;
+	// Builtins
+	if (Config::get().python_builtins.count(name) || known_builtin.count(name))
+		return true;
+	// STL
+	if (O_include_pybind11_stl && stl_builtin.count(name))
+		return true;
 
 	return false;
 }

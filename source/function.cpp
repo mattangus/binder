@@ -40,27 +40,53 @@ using namespace fmt::literals;
 
 namespace binder {
 
-static std::map<string, string > const cpp_python_operator_map{
-	{"operator+", "__add__"}, //
-	{"operator-", "__sub__"}, //
-	{"operator*", "__mul__"}, //
-	{"operator/", "__div__"}, //
+// Return the python operator that maps to the C++ operator; returns "" if no mapping exists
+// This correctly handles operators that have multiple meanings depending on their argument count
+// For example, operator_(this, other) maps to __sub__ while operator-(this) maps to __neg__
+string cpp_python_operator(const FunctionDecl & F) {
+	static std::map<string, vector<string>> const m {
+		{"operator+", {"__pos__", "__add__"}}, //
+		{"operator-", {"__neg__", "__sub__"}}, //
+		{"operator*", {"dereference", "__mul__"}}, //
+		{"operator/", {"__truediv__"}}, //
+		{"operator%", {"__mod__"}}, //
+		{"operator~", {"__invert__"}}, //
+		{"operator|", {"__or__"}}, //
+		{"operator&", {"__and__"}}, //
+		{"operator^", {"__xor__"}}, //
+		{"operator<<", {"__lshift__"}}, //
+		{"operator>>", {"__rshift__"}}, //
 
-	{"operator+=", "__iadd__"}, //
-	{"operator-=", "__isub__"}, //
-	{"operator*=", "__imul__"}, //
-	{"operator/=", "__idiv__"}, //
+		{"operator+=", {"__iadd__"}}, //
+		{"operator-=", {"__isub__"}}, //
+		{"operator*=", {"__imul__"}}, //
+		{"operator/=", {"__itruediv__"}}, //
+		{"operator%=", {"__imod__"}}, //
+		{"operator|=", {"__ior__"}}, //
+		{"operator&=", {"__iand__"}}, //
+		{"operator^=", {"__ixor__"}}, //
+		{"operator<<=", {"__ilshift__"}}, //
+		{"operator>>=", {"__irshift__"}}, //
 
-	{"operator()", "__call__"}, //
-	{"operator==", "__eq__"}, //
-	{"operator!=", "__ne__"}, //
-	{"operator[]", "__getitem__"}, //
-	{"operator=", "assign"}, //
-	{"operator++", "plus_plus"}, //
-	{"operator--", "minus_minus"}, //
+		{"operator()", {"__call__"}}, //
+		{"operator==", {"__eq__"}}, //
+		{"operator!=", {"__ne__"}}, //
+		{"operator[]", {"__getitem__"}}, //
+		{"operator=", {"assign"}}, //
+		{"operator++", {"pre_increment", "post_increment"}}, //
+		{"operator--", {"pre_decrement", "post_decrement"}}, //
 
-	{"operator->", "arrow"}, //
-};
+		{"operator->", {"arrow"}} //
+  };
+	const auto & found = m.find(F.getNameAsString());
+	if (found != m.end()) {
+		const auto & vec = found->second;
+		const auto n = F.getNumParams();
+		return n < vec.size() ? vec[n] : vec.back();
+	}
+	return {};
+}
+
 
 // Generate function argument list separate by comma: int, bool, std::string
 string function_arguments(clang::FunctionDecl const *record)
@@ -198,7 +224,9 @@ string template_specialization(FunctionDecl const *F)
 // generate string represetiong class name that could be used in python
 string python_function_name(FunctionDecl const *F)
 {
-	if( F->isOverloadedOperator() ) return cpp_python_operator_map.at(F->getNameAsString());
+	if( F->isOverloadedOperator() ) {
+		return cpp_python_operator(*F);
+	}
 	else {
 		// if( auto m = dyn_cast<CXXMethodDecl>(F) ) {
 		// }
@@ -282,8 +310,9 @@ vector<QualType> get_type_dependencies(FunctionDecl const *F)
 /// check if user requested binding for the given declaration
 bool is_binding_requested(FunctionDecl const *F, Config const &config)
 {
-	bool bind = config.is_function_binding_requested(F->getQualifiedNameAsString()) or config.is_function_binding_requested(function_qualified_name(F)) or
-				config.is_namespace_binding_requested(namespace_from_named_decl(F));
+	if( config.is_function_binding_requested(F->getQualifiedNameAsString()) or config.is_function_binding_requested(function_qualified_name(F, true)) ) return true;
+
+	bool bind = config.is_namespace_binding_requested(namespace_from_named_decl(F));
 
 	for( auto &t : get_type_dependencies(F) ) bind |= binder::is_binding_requested(t, config);
 
@@ -294,12 +323,19 @@ bool is_binding_requested(FunctionDecl const *F, Config const &config)
 /// check if user requested skipping for the given declaration
 bool is_skipping_requested(FunctionDecl const *F, Config const &config)
 {
-	string name = standard_name(F->getQualifiedNameAsString());
-	bool skip =
-		config.is_function_skipping_requested(name) or config.is_function_skipping_requested(function_qualified_name(F, true)) or config.is_namespace_skipping_requested(namespace_from_named_decl(F));
+	string qualified_name = standard_name(F->getQualifiedNameAsString());
+	string qualified_name_with_args_info_and_template_specialization = function_qualified_name(F, true);
 
-	// moved to config -> name.erase(std::remove(name.begin(), name.end(), ' '), name.end());
-	skip |= config.is_function_skipping_requested(name);
+	if( config.is_function_skipping_requested(qualified_name_with_args_info_and_template_specialization) ) return true; // qualified function name + parameter and template info was requested for skipping
+	if( config.is_function_binding_requested(qualified_name_with_args_info_and_template_specialization) ) return false; // qualified function name + parameter and template info was requested for binding
+
+	if( config.is_function_skipping_requested(qualified_name) ) return true; // qualified function name was requested for skipping
+	if( config.is_function_binding_requested(qualified_name) ) return false; // qualified function name was requested for binding
+
+	bool skip = config.is_namespace_skipping_requested(namespace_from_named_decl(F));
+
+	// moved to config -> qualified_name.erase(std::remove(name.begin(), name.end(), ' '), name.end());
+	skip |= config.is_function_skipping_requested(qualified_name);
 
 	// calculating skipping for template classes without template specialization specified as: myclass::member_function_to_skip
 	// outs() << "Checking skipping for function: " << function_qualified_name(F, true) << "...\n";
@@ -327,7 +363,13 @@ string bind_function(FunctionDecl const *F, uint args_to_bind, bool request_bind
 	string function_qualified_name = standard_name(parent ? class_qualified_name(parent) + "::" + F->getNameAsString() : F->getQualifiedNameAsString());
 
 	CXXMethodDecl const *m = dyn_cast<CXXMethodDecl>(F);
-	string maybe_static = m and m->isStatic() ? "_static" : "";
+
+	string maybe_static;
+	if( m and m->isStatic() ) {
+		maybe_static = "_static";
+		function_name = Config::get().prefix_for_static_member_functions() + function_name;
+		//outs() << "STATIC: " << function_qualified_name << " → " << function_name << "\n";
+	}
 
 	string function, documentation;
 	if( args_to_bind == F->getNumParams() and (not always_use_lambda) ) {
@@ -468,7 +510,7 @@ bool is_bindable_raw(FunctionDecl const *F)
 
 	if( F->isOverloadedOperator() ) {
 		// outs() << "Operator: " << F->getNameAsString() << '\n';
-		if( !isa<CXXMethodDecl>(F) or !cpp_python_operator_map.count(F->getNameAsString()) ) return false;
+		if( !isa<CXXMethodDecl>(F) or (cpp_python_operator(*F).size() == 0) ) return false;
 	}
 
 	r &= F->getTemplatedKind() != FunctionDecl::TK_FunctionTemplate /*and  !F->isOverloadedOperator()*/ and !isa<CXXConversionDecl>(F) and !F->isDeleted();

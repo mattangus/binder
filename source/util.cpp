@@ -225,7 +225,16 @@ string template_argument_to_string(clang::TemplateArgument const &t)
 #else
 	t.print(Policy, s, true);
 #endif
-	return s.str();
+
+    string r = s.str();
+
+	// // simplify result if argument is a small number, taking care of cases like 1L or 1UL
+	// if( r.size() < 5 and std::isdigit(r[0]) ) {
+	// 	if( ends_with(r, "UL" ) ) r.resize( r.size() - 2 );
+	// 	else if( ends_with(r, "L" ) ) r.resize( r.size() - 1 );
+	// }
+
+	return r;
 }
 
 
@@ -243,23 +252,23 @@ string line_number(NamedDecl const *decl)
 string mangle_type_name(string const &name, bool mark_template)
 {
 	string r;
-	bool mangle = true;
 	bool template_ = false;
 
 	for( auto &c : name ) {
-		if( c != ' ' and c != '<' and c != '>' and c != ',' and c != ':' ) {
-			r.push_back(c);
-			mangle = false;
+		if( c == ' ' or c == '<' or c == '>' or c == ',' or c == ':' ) {
+			if( r.empty() or r.back() != '_' ) r.push_back('_');
 		}
-		else if( !mangle ) {
-			mangle = true;
-			r.push_back('_');
-		}
+		else r.push_back(c);
 
 		if( c == '<' or c == '>' or c == ',' ) template_ = true;
 	}
 
-	if( template_ and mark_template ) r.push_back('t');
+	if( template_ and mark_template ) {
+		replace(r, "*", "_star_");
+		replace(r, "&", "_ref_");
+		r.push_back('t');
+	}
+
 	return r;
 }
 

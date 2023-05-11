@@ -18,6 +18,7 @@
 
 #include <llvm/Support/raw_ostream.h>
 
+#include <sstream>
 #include <fstream>
 #include <stdexcept>
 
@@ -56,16 +57,25 @@ void Config::read(string const &file_name)
 	string const _namespace_{"namespace"};
 	string const _function_{"function"};
 	string const _class_{"class"};
+	string const _field_{"field"};
+	string const _enum_{"enum"};
+
+	string const _python_builtin_{"python_builtin"};
 
 	string const _include_{"include"};
 	string const _include_for_class_{"include_for_class"};
 	string const _include_for_namespace_{"include_for_namespace"};
+
+	string const _buffer_protocol_{"buffer_protocol"};
+	string const _module_local_namespace_{"module_local_namespace"};
 
 	string const _binder_{"binder"};
 	string const _add_on_binder_{"add_on_binder"};
 
 	string const _binder_for_namespace_{"binder_for_namespace"};
 	string const _add_on_binder_for_namespace_{"add_on_binder_for_namespace"};
+
+	string const _custom_shared_{"custom_shared"};
 
 	string const _default_static_pointer_return_value_policy_{"default_static_pointer_return_value_policy"};
 	string const _default_static_lvalue_reference_return_value_policy_{"default_static_lvalue_reference_return_value_policy"};
@@ -75,7 +85,11 @@ void Config::read(string const &file_name)
 	string const _default_member_lvalue_reference_return_value_policy_{"default_member_lvalue_reference_return_value_policy"};
 	string const _default_member_rvalue_reference_return_value_policy_{"default_member_rvalue_reference_return_value_policy"};
 
+	string const _trampoline_member_function_binder_{"trampoline_member_function_binder"};
+
 	string const _default_call_guard_{"default_call_guard"};
+
+	string const _prefix_for_static_member_functions_{"prefix_for_static_member_functions"};
 
 	std::ifstream f(file_name);
 
@@ -114,6 +128,16 @@ void Config::read(string const &file_name)
 			if( bind ) classes_to_bind.push_back(name_without_spaces);
 			else classes_to_skip.push_back(name_without_spaces);
 		}
+		else if( token == _enum_ ) {
+
+			if( bind ) enums_to_bind.push_back(name_without_spaces);
+			else enums_to_skip.push_back(name_without_spaces);
+		}
+		else if( token == _python_builtin_ ) {
+
+			if (bind) python_builtins.insert(name_without_spaces);
+			else not_python_builtins.insert(name_without_spaces);
+		}
 		else if( token == _function_ ) {
 
 			if( bind ) functions_to_bind.push_back(name_without_spaces);
@@ -144,6 +168,19 @@ void Config::read(string const &file_name)
 				throw std::runtime_error("include_for_namespace must be '+' configuration.");
 			}
 		}
+		else if( token == _buffer_protocol_ ) {
+			if(bind) {
+				buffer_protocols.push_back(name_without_spaces);
+			}
+		}
+		else if( token == _module_local_namespace_) {
+			if(bind) {
+				module_local_namespaces_to_add.push_back(name_without_spaces);
+			}
+			else {
+				module_local_namespaces_to_skip.push_back(name_without_spaces);
+			}
+		}
 		else if( token == _binder_ ) {
 
 			if( bind ) {
@@ -171,7 +208,13 @@ void Config::read(string const &file_name)
 				auto binder_function = split_in_two(name, "Invalid line for add_on_binder_for_namespace specification! Must be: name_of_type + <space or tab> + name_of_binder. Got: " + line);
 				add_on_binder_for_namespaces_[binder_function.first] = binder_function.second;
 			}
+		} else if ( token == _field_ ) {
+
+			if (!bind) {
+				fields_to_skip.push_back(name_without_spaces);
+			}
 		}
+		else if( token == _custom_shared_ ) holder_type_ = name_without_spaces;
 
 		else if( token == _default_static_pointer_return_value_policy_ ) default_static_pointer_return_value_policy_ = name_without_spaces;
 		else if( token == _default_static_lvalue_reference_return_value_policy_ ) default_static_lvalue_reference_return_value_policy_ = name_without_spaces;
@@ -181,6 +224,15 @@ void Config::read(string const &file_name)
 		else if( token == _default_member_lvalue_reference_return_value_policy_ ) default_member_lvalue_reference_return_value_policy_ = name_without_spaces;
 		else if( token == _default_member_rvalue_reference_return_value_policy_ ) default_member_rvalue_reference_return_value_policy_ = name_without_spaces;
 		else if( token == _default_call_guard_ ) default_call_guard_ = name_without_spaces;
+
+		else if( token == _prefix_for_static_member_functions_ ) prefix_for_static_member_functions_ = name_without_spaces;
+
+		else if( token == _trampoline_member_function_binder_ ) {
+			if( bind ) {
+				auto member_function_name_and_function_name = split_in_two(name, "Invalid line for trampoline_member_function_binder specification! Must be: qualified_class_name::member_funtion_name + <space or tab> + name_of_function. Got: " + line);
+				custom_trampoline_functions_[member_function_name_and_function_name.first] = member_function_name_and_function_name.second;
+			}
+		}
 
 		else {
 			throw std::runtime_error("Invalid token in config file! Each token must be either: namespace, class or function! For example: '+function aaa::bb::my_function'. Token: '" + token +
@@ -318,6 +370,80 @@ bool Config::is_class_skipping_requested(string const &class__) const
 }
 
 
+bool Config::is_field_skipping_requested(string const &field_) const
+{
+	return std::find(fields_to_skip.begin(), fields_to_skip.end(), field_) != fields_to_skip.end();
+}
+
+
+bool Config::is_enum_binding_requested(string const &enum_) const
+{
+	auto bind = std::find(enums_to_bind.begin(), enums_to_bind.end(), enum_);
+
+	if( bind != enums_to_bind.end() ) return true;
+
+	return false;
+}
+
+
+bool Config::is_enum_skipping_requested(string const &enum_) const
+{
+	auto bind = std::find(enums_to_skip.begin(), enums_to_skip.end(), enum_);
+
+	if( bind != enums_to_skip.end() ) return true;
+
+	return false;
+}
+
+
+
+string Config::is_custom_trampoline_function_requested(string const &function_) const
+{
+	auto it = custom_trampoline_functions_.find(function_);
+	if( it == custom_trampoline_functions_.end() ) return "";
+	else return it->second;
+}
+
+
+bool Config::is_buffer_protocol_requested(string const &class__) const
+{
+	string class_{class__};
+	class_.erase(std::remove(class_.begin(), class_.end(), ' '), class_.end());
+
+	auto buffer_protocol = std::find(buffer_protocols.begin(), buffer_protocols.end(), class_);
+
+	if( buffer_protocol != buffer_protocols.end() ) {
+		// outs() << "Using buffer protocol for class : " << class_ << "\n";
+		return true;
+	}
+
+	return false;
+}
+
+bool Config::is_module_local_requested(string const &namespace_) const
+{
+	const string namespace_all = "@all_namespaces";
+	auto module_local_all = std::find(module_local_namespaces_to_add.begin(), module_local_namespaces_to_add.end(), namespace_all);
+	if( module_local_all != module_local_namespaces_to_add.end() ) {
+		auto module_local_to_skip = std::find(module_local_namespaces_to_skip.begin(), module_local_namespaces_to_skip.end(), namespace_);
+		if( module_local_to_skip != module_local_namespaces_to_skip.end()) {
+			return false;
+		}
+		return true;
+	}
+
+	auto module_local_to_add = std::find(module_local_namespaces_to_add.begin(), module_local_namespaces_to_add.end(), namespace_);
+	if( module_local_to_add != module_local_namespaces_to_add.end()) {
+		auto module_local_to_skip = std::find(module_local_namespaces_to_skip.begin(), module_local_namespaces_to_skip.end(), namespace_);
+		if( module_local_to_skip != module_local_namespaces_to_skip.end()) {
+			throw std::runtime_error("Could not determent if namespace '" + namespace_ + "' should use module_local or not... please resolve the conlficting options +module_local_namespace and -module_local_namespace!!!");
+		}
+		return true;
+	}
+
+	return false;
+}
+
 bool Config::is_include_skipping_requested(string const &include) const
 {
 	for( auto &i : includes_to_skip )
@@ -329,9 +455,11 @@ bool Config::is_include_skipping_requested(string const &include) const
 
 string Config::includes_code() const
 {
-	string c;
-	for( auto &i : includes_to_add ) c += "#include " + i + "\n";
-	return c.size() ? c + '\n' : c;
+	std::ostringstream s;
+	for( auto &i : includes_to_add ) s << "#include " << i << "\n";
+	if (O_include_pybind11_stl) s << "#include <pybind11/stl.h>\n";
+	if (s.tellp() != std::streampos(0)) s << '\n';
+	return s.str();
 }
 
 } // namespace binder

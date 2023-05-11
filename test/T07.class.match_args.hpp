@@ -8,6 +8,13 @@
 
 #pragma once
 
-#include <T31.include_for_class.incl.a.include>
-#include <T31.include_for_class.incl.b.include>
-#include <T31.include_for_class.incl.c.include>
+#include <string>
+#include <tuple>
+
+class MatchArgs
+{
+public:
+	const std::tuple<std::string, std::string> __match_args__ =  std::make_tuple("var1", "var2");
+	int var1;
+	int var2;
+};

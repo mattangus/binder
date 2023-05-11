@@ -34,6 +34,10 @@ std::string template_specialization(clang::CXXRecordDecl const *C);
 std::string class_name(clang::CXXRecordDecl const *C);
 
 
+// generate string represetiong class name that could be used in python
+std::string python_class_name(clang::CXXRecordDecl const *C);
+
+
 // generate qualified class name that could be used in bindings code including template specialization if any
 std::string class_qualified_name(clang::CXXRecordDecl const *C);
 
@@ -117,7 +121,7 @@ private:
 	string bind_nested_classes(Context &context);
 
 	/// generate (if any) bindings for Python __str__ by using appropriate global operator<<
-	std::string bind_repr(Context &);
+	std::string bind_repr(Context &, Config const &);
 };
 
 

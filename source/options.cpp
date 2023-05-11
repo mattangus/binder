@@ -30,6 +30,9 @@ cl::opt<bool> O_verbose("v", cl::desc("Increase verbosity of output"), cl::init(
 cl::opt<bool> O_flat("flat", cl::desc("When specified generated files into single directory. Generated files will be named as <root-module>.cpp, <root-module>_1.cpp, <root-module>_2.cpp, ... etc."),
 					 cl::init(false), cl::cat(BinderToolCategory));
 
+cl::opt<bool> O_include_pybind11_stl("include-pybind11-stl", cl::desc("When specified bindings for STL classes in <pybind11/stl.h> will be used instead of generating custom STL bindings."),
+					 cl::init(false), cl::cat(BinderToolCategory));
+
 
 cl::opt<std::string> O_root_module("root-module", cl::desc("Name of root module"), /*cl::init("example"),*/ cl::cat(BinderToolCategory));
 
@@ -46,3 +49,5 @@ cl::opt<bool> O_suppress_errors("suppress-errors",
 								cl::desc("Suppres all the compilers errors. This option could be useful when you want to tell Binder to ignore non-critical errors (for example due to missing "
 										 "includes) and generate binding for part of code that Binder was able to parse"),
 								cl::init(false), cl::cat(BinderToolCategory));
+
+cl::opt<bool> O_bind_class_template_specialization("bind-class-template-specialization", cl::desc("attempt to bind class template specilizations"), cl::init(true), cl::cat(BinderToolCategory));
