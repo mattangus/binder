@@ -728,7 +728,9 @@ bool is_python_builtin(NamedDecl const *C)
 
 		"std::__hash_value_type",
 
-		"std::function", "std::complex"};
+		"std::function", "std::complex",
+		
+		"cv::Mat_"};
 
 	for( auto &k : known_builtin ) {
 		// if( begins_with(name, k) ) return true;
