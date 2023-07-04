@@ -730,7 +730,7 @@ bool is_python_builtin(NamedDecl const *C)
 
 		"std::function", "std::complex",
 		
-		"cv::Mat_"};
+		"cv::Mat_", "cv::Mat", "Eigen::Matrix"};
 
 	for( auto &k : known_builtin ) {
 		// if( begins_with(name, k) ) return true;
