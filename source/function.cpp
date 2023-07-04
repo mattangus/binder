@@ -358,10 +358,79 @@ bool is_skipping_requested(FunctionDecl const *F, Config const &config)
 	return skip;
 }
 
+string bind_function_setter(const string &module, FunctionDecl const *F, Context &context, CXXRecordDecl const *parent) {
+	static vector< std::pair<string, string> > const name_map = {
+		std::make_pair("enum ", ""),
+		std::make_pair("class ", ""),
+		std::make_pair("struct ", ""),
+		std::make_pair("const enum ", "const "),
+		std::make_pair("const class ", "const "),
+		std::make_pair("const struct ", "const "),
+	};
+
+	string code;
+	string function_name = python_function_name(F);
+	string function_qualified_name = standard_name(parent ? class_qualified_name(parent) + "::" + F->getNameAsString() : F->getQualifiedNameAsString());
+	CXXMethodDecl const *m = dyn_cast<CXXMethodDecl>(F);
+
+	if (F->getReturnType()->isReferenceType()) {
+		const clang::QualType &qt = F->getReturnType();
+		const clang::QualType &nonRefQt = qt.getNonReferenceType();
+		const clang::Type* nonRef = nonRefQt.getTypePtr();
+		if (nonRef->isFundamentalType()) {
+
+			string function, documentation;
+			string maybe_static;
+			if( m and m->isStatic() ) {
+				maybe_static = "_static";
+				function_name = Config::get().prefix_for_static_member_functions() + function_name;
+				//outs() << "STATIC: " << function_qualified_name << " → " << function_name << "\n";
+			}
+
+			documentation = "setter for primitive reference return value {}"_format(F->getQualifiedNameAsString());
+
+			string return_type = standard_name(nonRefQt);
+			outs() << " making setter for " << function_name << " -> " << return_type << "\n";
+			pair<string, string> args = function_arguments_for_lambda(F, 0);
+
+			string input_args = "{}, {} value"_format(args.first, return_type);
+
+
+			// workaround of GCC bug during lambda specification: replace enum/struct/class/const_* from begining of the lambda return type with //const*
+			for( auto &p : name_map ) {
+				if( begins_with(return_type, p.first) ) { return_type = p.second + return_type.substr(p.first.size()); }
+			}
+
+			string func;
+
+			if( m and !m->isStatic() ) {
+				// forcing object type to be of parent class so member function with lifted access could be used
+				string object = class_qualified_name(parent ? parent : m->getParent()) + (m->isConst() ? " const" : "") + " &o";
+				func = "[]({}{}) -> void {{ o.{}() = value; }}"_format(object, input_args, F->getNameAsString());
+			}
+			else {
+				func = "[]({}) -> void {{ {}() = value; }}"_format(input_args, function_qualified_name);
+			}
+
+			code = module + R"(.def{}("set_{}", {}, "{}")"_format(maybe_static, function_name, func, documentation);
+			code += "); \n";
+		}
+	}
+
+	return code;
+}
 
 // Generate binding for given function: .def("foo", (std::string (aaaa::A::*)(int) ) &aaaa::A::foo, "doc")
 string bind_function(FunctionDecl const *F, uint args_to_bind, bool request_bindings_f, Context &context, CXXRecordDecl const *parent, bool always_use_lambda)
 {
+	static vector< std::pair<string, string> > const name_map = {
+		std::make_pair("enum ", ""),
+		std::make_pair("class ", ""),
+		std::make_pair("struct ", ""),
+		std::make_pair("const enum ", "const "),
+		std::make_pair("const class ", "const "),
+		std::make_pair("const struct ", "const "),
+	};
 	string function_name = python_function_name(F);
 
 	string function_qualified_name = standard_name(parent ? class_qualified_name(parent) + "::" + F->getNameAsString() : F->getQualifiedNameAsString());
@@ -391,14 +460,6 @@ string bind_function(FunctionDecl const *F, uint args_to_bind, bool request_bind
 		string return_type = standard_name(F->getReturnType());
 
 		// workaround of GCC bug during lambda specification: replace enum/struct/class/const_* from begining of the lambda return type with //const*
-		static vector< std::pair<string, string> > const name_map = {
-			std::make_pair("enum ", ""),
-			std::make_pair("class ", ""),
-			std::make_pair("struct ", ""),
-			std::make_pair("const enum ", "const "),
-			std::make_pair("const class ", "const "),
-			std::make_pair("const struct ", "const "),
-		};
 		for( auto &p : name_map ) {
 			if( begins_with(return_type, p.first) ) { return_type = p.second + return_type.substr(p.first.size()); }
 		}
@@ -462,6 +523,8 @@ string bind_function(string const &module, FunctionDecl const *F, Context &conte
 			break;
 		}
 	}
+
+	code += bind_function_setter(module, F, context, parent);
 
 	for( ; args_to_bind < num_params; ++args_to_bind ) {
 		if( F->getParamDecl(args_to_bind)->hasDefaultArg() ) break;
