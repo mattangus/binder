@@ -1,5 +1,5 @@
 #This file can be used to build binder using preinstalled LLVM/Clang
-CMAKE_MINIMUM_REQUIRED(VERSION 2.8.0)
+CMAKE_MINIMUM_REQUIRED(VERSION 3.5.0)
 PROJECT(binder CXX C)
 SET(VERSION 1.4.1)
 option(STATIC "Statically compile Binder. See `documentation/install.rst` for more information." OFF)
@@ -46,6 +46,11 @@ if (Clang_FOUND AND LLVM_FOUND AND NOT LLVMCONFIG )
     ${LLVM_LIBRARY_DIR}/../../lib/clang/${LLVM_VERSION}/include
     ${LLVM_LIBRARY_DIR}/../../lib64/clang/${LLVM_VERSION}/include
     ${CLANG_INCLUDE_DIRS}/clang/${LLVM_VERSION}/include
+    ${LLVM_LIBRARY_DIR}/clang/${LLVM_VERSION_MAJOR}/include
+    ${LLVM_LIBRARY_DIR}/../clang/${LLVM_VERSION_MAJOR}/include
+    ${LLVM_LIBRARY_DIR}/../../lib/clang/${LLVM_VERSION_MAJOR}/include
+    ${LLVM_LIBRARY_DIR}/../../lib64/clang/${LLVM_VERSION_MAJOR}/include
+    ${CLANG_INCLUDE_DIRS}/clang/${LLVM_VERSION_MAJOR}/include
     ${LLVM_LIBRARY_DIR}/clang/${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR}.${LLVM_VERSION_PATCH}/include
     ${LLVM_LIBRARY_DIR}/../clang/${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR}.${LLVM_VERSION_PATCH}/include
     ${LLVM_LIBRARY_DIR}/../../lib/clang/${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR}.${LLVM_VERSION_PATCH}/include

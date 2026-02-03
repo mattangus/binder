@@ -15,43 +15,43 @@
 
 #ifndef BINDER_PYBIND11_TYPE_CASTER
 	#define BINDER_PYBIND11_TYPE_CASTER
-	PYBIND11_DECLARE_HOLDER_TYPE(T, std::shared_ptr<T>)
-	PYBIND11_DECLARE_HOLDER_TYPE(T, T*)
+	PYBIND11_DECLARE_HOLDER_TYPE(T, std::shared_ptr<T>, false)
+	PYBIND11_DECLARE_HOLDER_TYPE(T, T*, false)
 	PYBIND11_MAKE_OPAQUE(std::shared_ptr<void>)
 #endif
 
 void bind_T08_constructor(std::function< pybind11::module &(std::string const &namespace_) > &M)
 {
-	{ // BaseA file:T08.constructor.hpp line:16
+	{ // BaseA file:T08.constructor.hpp line:
 		pybind11::class_<BaseA, std::shared_ptr<BaseA>> cl(M(""), "BaseA", "");
 		cl.def( pybind11::init( [](){ return new BaseA(); } ) );
 	}
-	{ // DerivedA file:T08.constructor.hpp line:19
+	{ // DerivedA file:T08.constructor.hpp line:
 		pybind11::class_<DerivedA, std::shared_ptr<DerivedA>, BaseA> cl(M(""), "DerivedA", "");
 		cl.def( pybind11::init( [](){ return new DerivedA(); } ) );
 	}
-	{ // BaseB file:T08.constructor.hpp line:24
+	{ // BaseB file:T08.constructor.hpp line:
 		pybind11::class_<BaseB, std::shared_ptr<BaseB>> cl(M(""), "BaseB", "");
 		cl.def( pybind11::init<int>(), pybind11::arg("") );
 
 	}
-	{ // DerivedB file:T08.constructor.hpp line:29
+	{ // DerivedB file:T08.constructor.hpp line:
 		pybind11::class_<DerivedB, std::shared_ptr<DerivedB>, BaseB> cl(M(""), "DerivedB", "");
 	}
-	{ // BaseC file:T08.constructor.hpp line:34
+	{ // BaseC file:T08.constructor.hpp line:
 		pybind11::class_<BaseC, std::shared_ptr<BaseC>> cl(M(""), "BaseC", "");
 		cl.def( pybind11::init<int>(), pybind11::arg("") );
 
 	}
-	{ // DerivedC file:T08.constructor.hpp line:42
+	{ // DerivedC file:T08.constructor.hpp line:
 		pybind11::class_<DerivedC, std::shared_ptr<DerivedC>, BaseC> cl(M(""), "DerivedC", "");
 	}
-	{ // BaseD file:T08.constructor.hpp line:47
+	{ // BaseD file:T08.constructor.hpp line:
 		pybind11::class_<BaseD, std::shared_ptr<BaseD>> cl(M(""), "BaseD", "");
 		cl.def( pybind11::init<int>(), pybind11::arg("") );
 
 	}
-	{ // DerivedD file:T08.constructor.hpp line:53
+	{ // DerivedD file:T08.constructor.hpp line:
 		pybind11::class_<DerivedD, std::shared_ptr<DerivedD>, BaseD> cl(M(""), "DerivedD", "");
 	}
 }
@@ -66,7 +66,7 @@ void bind_T08_constructor(std::function< pybind11::module &(std::string const &n
 
 #include <pybind11/pybind11.h>
 
-typedef std::function< pybind11::module & (std::string const &) > ModuleGetter;
+using ModuleGetter = std::function< pybind11::module & (std::string const &) >;
 
 void bind_T08_constructor(std::function< pybind11::module &(std::string const &namespace_) > &M);
 
@@ -88,13 +88,13 @@ PYBIND11_MODULE(T08_constructor, root_module) {
 	auto mangle_namespace_name(
 		[](std::string const &ns) -> std::string {
 			if ( std::find(reserved_python_words.begin(), reserved_python_words.end(), ns) == reserved_python_words.end() ) return ns;
-			else return ns+'_';
+			return ns+'_';
 		}
 	);
 
 	std::vector< std::pair<std::string, std::string> > sub_modules {
 	};
-	for(auto &p : sub_modules ) modules[p.first.size() ? p.first+"::"+p.second : p.second] = modules[p.first].def_submodule( mangle_namespace_name(p.second).c_str(), ("Bindings for " + p.first + "::" + p.second + " namespace").c_str() );
+	for(auto &p : sub_modules ) modules[ p.first.empty() ? p.second :  p.first+"::"+p.second ] = modules[p.first].def_submodule( mangle_namespace_name(p.second).c_str(), ("Bindings for " + p.first + "::" + p.second + " namespace").c_str() );
 
 	//pybind11::class_<std::shared_ptr<void>>(M(""), "_encapsulated_data_");
 

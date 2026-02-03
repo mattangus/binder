@@ -14,6 +14,7 @@
 #define _INCLUDED_function_hpp_
 
 #include <binder.hpp>
+#include <config.hpp>
 
 #include <clang/AST/Decl.h>
 #include <clang/AST/DeclCXX.h>
@@ -26,8 +27,10 @@ namespace binder {
 
 class Context;
 
+
 /// Generate function argument list separated by comma
 std::string function_arguments(clang::FunctionDecl const *record);
+
 
 /// Generate function argument list separated by comma
 /// name_arguments - if arguments should be named: a1, a2, ...
@@ -91,7 +94,7 @@ public:
 	bool bindable() const override;
 
 	/// check if user requested binding for the given declaration
-	void request_bindings_and_skipping(Config const &) override;
+	void request_bindings_and_skipping(Config const &, RequestFlags flags = RequestFlags::skipping | RequestFlags::binding) override;
 
 	/// extract include needed for this generator and add it to includes vector
 	void add_relevant_includes(IncludeSet &includes) const override;

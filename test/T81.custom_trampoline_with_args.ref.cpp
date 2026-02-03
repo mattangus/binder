@@ -13,12 +13,12 @@
 
 #ifndef BINDER_PYBIND11_TYPE_CASTER
 	#define BINDER_PYBIND11_TYPE_CASTER
-	PYBIND11_DECLARE_HOLDER_TYPE(T, std::shared_ptr<T>)
-	PYBIND11_DECLARE_HOLDER_TYPE(T, T*)
+	PYBIND11_DECLARE_HOLDER_TYPE(T, std::shared_ptr<T>, false)
+	PYBIND11_DECLARE_HOLDER_TYPE(T, T*, false)
 	PYBIND11_MAKE_OPAQUE(std::shared_ptr<void>)
 #endif
 
-// aaa::A file:T81.custom_trampoline_with_args.hpp line:26
+// aaa::A file:T81.custom_trampoline_with_args.hpp line:
 struct PyCallBack_aaa_A_double_t : public aaa::A<double> {
 	using aaa::A<double>::A;
 
@@ -29,7 +29,7 @@ struct PyCallBack_aaa_A_double_t : public aaa::A<double> {
 
 void bind_T81_custom_trampoline_with_args(std::function< pybind11::module &(std::string const &namespace_) > &M)
 {
-	{ // aaa::A file:T81.custom_trampoline_with_args.hpp line:26
+	{ // aaa::A file:T81.custom_trampoline_with_args.hpp line:
 		pybind11::class_<aaa::A<double>, std::shared_ptr<aaa::A<double>>, PyCallBack_aaa_A_double_t> cl(M("aaa"), "A_double_t", "");
 		cl.def( pybind11::init( [](){ return new aaa::A<double>(); }, [](){ return new PyCallBack_aaa_A_double_t(); } ) );
 		cl.def("foo", (void (aaa::A<double>::*)(int, std::string, float)) &aaa::A<double>::foo, "C++: aaa::A<double>::foo(int, std::string, float) --> void", pybind11::arg("a"), pybind11::arg("b"), pybind11::arg("d"));
@@ -47,7 +47,7 @@ void bind_T81_custom_trampoline_with_args(std::function< pybind11::module &(std:
 
 #include <pybind11/pybind11.h>
 
-typedef std::function< pybind11::module & (std::string const &) > ModuleGetter;
+using ModuleGetter = std::function< pybind11::module & (std::string const &) >;
 
 void bind_T81_custom_trampoline_with_args(std::function< pybind11::module &(std::string const &namespace_) > &M);
 
@@ -69,14 +69,14 @@ PYBIND11_MODULE(T81_custom_trampoline_with_args, root_module) {
 	auto mangle_namespace_name(
 		[](std::string const &ns) -> std::string {
 			if ( std::find(reserved_python_words.begin(), reserved_python_words.end(), ns) == reserved_python_words.end() ) return ns;
-			else return ns+'_';
+			return ns+'_';
 		}
 	);
 
 	std::vector< std::pair<std::string, std::string> > sub_modules {
 		{"", "aaa"},
 	};
-	for(auto &p : sub_modules ) modules[p.first.size() ? p.first+"::"+p.second : p.second] = modules[p.first].def_submodule( mangle_namespace_name(p.second).c_str(), ("Bindings for " + p.first + "::" + p.second + " namespace").c_str() );
+	for(auto &p : sub_modules ) modules[ p.first.empty() ? p.second :  p.first+"::"+p.second ] = modules[p.first].def_submodule( mangle_namespace_name(p.second).c_str(), ("Bindings for " + p.first + "::" + p.second + " namespace").c_str() );
 
 	//pybind11::class_<std::shared_ptr<void>>(M(""), "_encapsulated_data_");
 

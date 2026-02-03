@@ -11,12 +11,12 @@
 
 #ifndef BINDER_PYBIND11_TYPE_CASTER
 	#define BINDER_PYBIND11_TYPE_CASTER
-	PYBIND11_DECLARE_HOLDER_TYPE(T, std::shared_ptr<T>)
-	PYBIND11_DECLARE_HOLDER_TYPE(T, T*)
+	PYBIND11_DECLARE_HOLDER_TYPE(T, std::shared_ptr<T>, false)
+	PYBIND11_DECLARE_HOLDER_TYPE(T, T*, false)
 	PYBIND11_MAKE_OPAQUE(std::shared_ptr<void>)
 #endif
 
-// A2 file:T09.overload.hpp line:20
+// A2 file:T09.overload.hpp line:
 struct PyCallBack_A2 : public A2 {
 	using A2::A2;
 
@@ -29,13 +29,13 @@ struct PyCallBack_A2 : public A2 {
 				static pybind11::detail::override_caster_t<void> caster;
 				return pybind11::detail::cast_ref<void>(std::move(o), caster);
 			}
-			else return pybind11::detail::cast_safe<void>(std::move(o));
+			return pybind11::detail::cast_safe<void>(std::move(o));
 		}
 		return A2::f();
 	}
 };
 
-// A3 file:T09.overload.hpp line:27
+// A3 file:T09.overload.hpp line:
 struct PyCallBack_A3 : public A3 {
 	using A3::A3;
 
@@ -48,13 +48,13 @@ struct PyCallBack_A3 : public A3 {
 				static pybind11::detail::override_caster_t<void> caster;
 				return pybind11::detail::cast_ref<void>(std::move(o), caster);
 			}
-			else return pybind11::detail::cast_safe<void>(std::move(o));
+			return pybind11::detail::cast_safe<void>(std::move(o));
 		}
 		pybind11::pybind11_fail("Tried to call pure virtual function \"A3::f\"");
 	}
 };
 
-// A4 file:T09.overload.hpp line:33
+// A4 file:T09.overload.hpp line:
 struct PyCallBack_A4 : public A4 {
 	using A4::A4;
 
@@ -67,7 +67,7 @@ struct PyCallBack_A4 : public A4 {
 				static pybind11::detail::override_caster_t<int> caster;
 				return pybind11::detail::cast_ref<int>(std::move(o), caster);
 			}
-			else return pybind11::detail::cast_safe<int>(std::move(o));
+			return pybind11::detail::cast_safe<int>(std::move(o));
 		}
 		pybind11::pybind11_fail("Tried to call pure virtual function \"A4::assign\"");
 	}
@@ -75,13 +75,13 @@ struct PyCallBack_A4 : public A4 {
 
 void bind_T09_overload(std::function< pybind11::module &(std::string const &namespace_) > &M)
 {
-	{ // A1 file:T09.overload.hpp line:15
+	{ // A1 file:T09.overload.hpp line:
 		pybind11::class_<A1, std::shared_ptr<A1>> cl(M(""), "A1", "");
 		cl.def( pybind11::init( [](){ return new A1(); } ), "doc" );
 		cl.def( pybind11::init<int>(), pybind11::arg("a") );
 
 	}
-	{ // A2 file:T09.overload.hpp line:20
+	{ // A2 file:T09.overload.hpp line:
 		pybind11::class_<A2, std::shared_ptr<A2>, PyCallBack_A2> cl(M(""), "A2", "");
 		cl.def( pybind11::init( [](){ return new A2(); }, [](){ return new PyCallBack_A2(); } ), "doc");
 		cl.def( pybind11::init<int>(), pybind11::arg("a") );
@@ -89,7 +89,7 @@ void bind_T09_overload(std::function< pybind11::module &(std::string const &name
 		cl.def("f", (void (A2::*)()) &A2::f, "C++: A2::f() --> void");
 		cl.def("assign", (struct A2 & (A2::*)(const struct A2 &)) &A2::operator=, "C++: A2::operator=(const struct A2 &) --> struct A2 &", pybind11::return_value_policy::automatic, pybind11::arg(""));
 	}
-	{ // A3 file:T09.overload.hpp line:27
+	{ // A3 file:T09.overload.hpp line:
 		pybind11::class_<A3, std::shared_ptr<A3>, PyCallBack_A3> cl(M(""), "A3", "");
 		cl.def( pybind11::init( [](){ return new PyCallBack_A3(); } ), "doc");
 		cl.def( pybind11::init<int>(), pybind11::arg("a") );
@@ -97,7 +97,7 @@ void bind_T09_overload(std::function< pybind11::module &(std::string const &name
 		cl.def("f", (void (A3::*)()) &A3::f, "C++: A3::f() --> void");
 		cl.def("assign", (struct A3 & (A3::*)(const struct A3 &)) &A3::operator=, "C++: A3::operator=(const struct A3 &) --> struct A3 &", pybind11::return_value_policy::automatic, pybind11::arg(""));
 	}
-	{ // A4 file:T09.overload.hpp line:33
+	{ // A4 file:T09.overload.hpp line:
 		pybind11::class_<A4, std::shared_ptr<A4>, PyCallBack_A4> cl(M(""), "A4", "");
 		cl.def( pybind11::init( [](){ return new PyCallBack_A4(); } ), "doc");
 		cl.def( pybind11::init<int>(), pybind11::arg("a") );
@@ -117,7 +117,7 @@ void bind_T09_overload(std::function< pybind11::module &(std::string const &name
 
 #include <pybind11/pybind11.h>
 
-typedef std::function< pybind11::module & (std::string const &) > ModuleGetter;
+using ModuleGetter = std::function< pybind11::module & (std::string const &) >;
 
 void bind_T09_overload(std::function< pybind11::module &(std::string const &namespace_) > &M);
 
@@ -139,13 +139,13 @@ PYBIND11_MODULE(T09_overload, root_module) {
 	auto mangle_namespace_name(
 		[](std::string const &ns) -> std::string {
 			if ( std::find(reserved_python_words.begin(), reserved_python_words.end(), ns) == reserved_python_words.end() ) return ns;
-			else return ns+'_';
+			return ns+'_';
 		}
 	);
 
 	std::vector< std::pair<std::string, std::string> > sub_modules {
 	};
-	for(auto &p : sub_modules ) modules[p.first.size() ? p.first+"::"+p.second : p.second] = modules[p.first].def_submodule( mangle_namespace_name(p.second).c_str(), ("Bindings for " + p.first + "::" + p.second + " namespace").c_str() );
+	for(auto &p : sub_modules ) modules[ p.first.empty() ? p.second :  p.first+"::"+p.second ] = modules[p.first].def_submodule( mangle_namespace_name(p.second).c_str(), ("Bindings for " + p.first + "::" + p.second + " namespace").c_str() );
 
 	//pybind11::class_<std::shared_ptr<void>>(M(""), "_encapsulated_data_");
 

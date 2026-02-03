@@ -18,6 +18,7 @@ enum E1 { E1_V0, E1_V1 };
 enum struct E2_struct { V0, V1 };
 enum class E3_class { V0, V1 };
 
+enum E4_not_binded { E4_V0, E4_V1 };
 
 class A
 {
@@ -46,5 +47,12 @@ namespace aaaa {
 enum class E7_class { V0, V1 };
 enum class E8_class_not_binded { V0, V1 };
 }
+
+extern "C" {
+typedef enum E9_extern_C {
+  E5_V0 = 0,
+} E9_extern_C;
+}
+
 
 #endif // _INCLUDED_T01_enum_hpp_

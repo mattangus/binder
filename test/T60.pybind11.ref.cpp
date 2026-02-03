@@ -15,80 +15,80 @@
 
 #ifndef BINDER_PYBIND11_TYPE_CASTER
 	#define BINDER_PYBIND11_TYPE_CASTER
-	PYBIND11_DECLARE_HOLDER_TYPE(T, std::shared_ptr<T>)
-	PYBIND11_DECLARE_HOLDER_TYPE(T, T*)
+	PYBIND11_DECLARE_HOLDER_TYPE(T, std::shared_ptr<T>, false)
+	PYBIND11_DECLARE_HOLDER_TYPE(T, T*, false)
 	PYBIND11_MAKE_OPAQUE(std::shared_ptr<void>)
 #endif
 
 void bind_T60_pybind11(std::function< pybind11::module &(std::string const &namespace_) > &M)
 {
-	// foo(class pybind11::handle &) file:T60.pybind11.hpp line:15
+	// foo(class pybind11::handle &) file:T60.pybind11.hpp line:
 	M("").def("foo", (void (*)(class pybind11::handle &)) &foo, "C++: foo(class pybind11::handle &) --> void", pybind11::arg(""));
 
-	// foo(class pybind11::object &) file:T60.pybind11.hpp line:16
+	// foo(class pybind11::object &) file:T60.pybind11.hpp line:
 	M("").def("foo", (void (*)(class pybind11::object &)) &foo, "C++: foo(class pybind11::object &) --> void", pybind11::arg(""));
 
-	// foo(class pybind11::module_ &) file:T60.pybind11.hpp line:17
+	// foo(class pybind11::module_ &) file:T60.pybind11.hpp line:
 	M("").def("foo", (void (*)(class pybind11::module_ &)) &foo, "C++: foo(class pybind11::module_ &) --> void", pybind11::arg(""));
 
-	// foo(class pybind11::iterator &) file:T60.pybind11.hpp line:18
+	// foo(class pybind11::iterator &) file:T60.pybind11.hpp line:
 	M("").def("foo", (void (*)(class pybind11::iterator &)) &foo, "C++: foo(class pybind11::iterator &) --> void", pybind11::arg(""));
 
-	// foo(class pybind11::iterable &) file:T60.pybind11.hpp line:20
+	// foo(class pybind11::iterable &) file:T60.pybind11.hpp line:
 	M("").def("foo", (void (*)(class pybind11::iterable &)) &foo, "C++: foo(class pybind11::iterable &) --> void", pybind11::arg(""));
 
-	// foo(class pybind11::str &) file:T60.pybind11.hpp line:21
+	// foo(class pybind11::str &) file:T60.pybind11.hpp line:
 	M("").def("foo", (void (*)(class pybind11::str &)) &foo, "C++: foo(class pybind11::str &) --> void", pybind11::arg(""));
 
-	// foo(class pybind11::bytes &) file:T60.pybind11.hpp line:22
+	// foo(class pybind11::bytes &) file:T60.pybind11.hpp line:
 	M("").def("foo", (void (*)(class pybind11::bytes &)) &foo, "C++: foo(class pybind11::bytes &) --> void", pybind11::arg(""));
 
-	// foo(class pybind11::none &) file:T60.pybind11.hpp line:24
+	// foo(class pybind11::none &) file:T60.pybind11.hpp line:
 	M("").def("foo", (void (*)(class pybind11::none &)) &foo, "C++: foo(class pybind11::none &) --> void", pybind11::arg(""));
 
-	// foo(class pybind11::ellipsis &) file:T60.pybind11.hpp line:25
+	// foo(class pybind11::ellipsis &) file:T60.pybind11.hpp line:
 	M("").def("foo", (void (*)(class pybind11::ellipsis &)) &foo, "C++: foo(class pybind11::ellipsis &) --> void", pybind11::arg(""));
 
-	// foo(class pybind11::bool_ &) file:T60.pybind11.hpp line:26
+	// foo(class pybind11::bool_ &) file:T60.pybind11.hpp line:
 	M("").def("foo", (void (*)(class pybind11::bool_ &)) &foo, "C++: foo(class pybind11::bool_ &) --> void", pybind11::arg(""));
 
-	// foo(class pybind11::int_ &) file:T60.pybind11.hpp line:27
+	// foo(class pybind11::int_ &) file:T60.pybind11.hpp line:
 	M("").def("foo", (void (*)(class pybind11::int_ &)) &foo, "C++: foo(class pybind11::int_ &) --> void", pybind11::arg(""));
 
-	// foo(class pybind11::float_ &) file:T60.pybind11.hpp line:28
+	// foo(class pybind11::float_ &) file:T60.pybind11.hpp line:
 	M("").def("foo", (void (*)(class pybind11::float_ &)) &foo, "C++: foo(class pybind11::float_ &) --> void", pybind11::arg(""));
 
-	// foo(class pybind11::weakref &) file:T60.pybind11.hpp line:29
+	// foo(class pybind11::weakref &) file:T60.pybind11.hpp line:
 	M("").def("foo", (void (*)(class pybind11::weakref &)) &foo, "C++: foo(class pybind11::weakref &) --> void", pybind11::arg(""));
 
-	// foo(class pybind11::slice &) file:T60.pybind11.hpp line:30
+	// foo(class pybind11::slice &) file:T60.pybind11.hpp line:
 	M("").def("foo", (void (*)(class pybind11::slice &)) &foo, "C++: foo(class pybind11::slice &) --> void", pybind11::arg(""));
 
-	// foo(class pybind11::capsule &) file:T60.pybind11.hpp line:31
+	// foo(class pybind11::capsule &) file:T60.pybind11.hpp line:
 	M("").def("foo", (void (*)(class pybind11::capsule &)) &foo, "C++: foo(class pybind11::capsule &) --> void", pybind11::arg(""));
 
-	// foo(class pybind11::tuple &) file:T60.pybind11.hpp line:32
+	// foo(class pybind11::tuple &) file:T60.pybind11.hpp line:
 	M("").def("foo", (void (*)(class pybind11::tuple &)) &foo, "C++: foo(class pybind11::tuple &) --> void", pybind11::arg(""));
 
-	// foo(class pybind11::dict &) file:T60.pybind11.hpp line:35
+	// foo(class pybind11::dict &) file:T60.pybind11.hpp line:
 	M("").def("foo", (void (*)(class pybind11::dict &)) &foo, "C++: foo(class pybind11::dict &) --> void", pybind11::arg(""));
 
-	// foo(class pybind11::sequence &) file:T60.pybind11.hpp line:36
+	// foo(class pybind11::sequence &) file:T60.pybind11.hpp line:
 	M("").def("foo", (void (*)(class pybind11::sequence &)) &foo, "C++: foo(class pybind11::sequence &) --> void", pybind11::arg(""));
 
-	// foo(class pybind11::list &) file:T60.pybind11.hpp line:37
+	// foo(class pybind11::list &) file:T60.pybind11.hpp line:
 	M("").def("foo", (void (*)(class pybind11::list &)) &foo, "C++: foo(class pybind11::list &) --> void", pybind11::arg(""));
 
-	// foo(class pybind11::set &) file:T60.pybind11.hpp line:40
+	// foo(class pybind11::set &) file:T60.pybind11.hpp line:
 	M("").def("foo", (void (*)(class pybind11::set &)) &foo, "C++: foo(class pybind11::set &) --> void", pybind11::arg(""));
 
-	// foo(class pybind11::function &) file:T60.pybind11.hpp line:41
+	// foo(class pybind11::function &) file:T60.pybind11.hpp line:
 	M("").def("foo", (void (*)(class pybind11::function &)) &foo, "C++: foo(class pybind11::function &) --> void", pybind11::arg(""));
 
-	// foo(class pybind11::buffer &) file:T60.pybind11.hpp line:42
+	// foo(class pybind11::buffer &) file:T60.pybind11.hpp line:
 	M("").def("foo", (void (*)(class pybind11::buffer &)) &foo, "C++: foo(class pybind11::buffer &) --> void", pybind11::arg(""));
 
-	// foo(class pybind11::array &) file:T60.pybind11.hpp line:44
+	// foo(class pybind11::array &) file:T60.pybind11.hpp line:
 	M("").def("foo", (void (*)(class pybind11::array &)) &foo, "C++: foo(class pybind11::array &) --> void", pybind11::arg(""));
 
 }
@@ -103,7 +103,7 @@ void bind_T60_pybind11(std::function< pybind11::module &(std::string const &name
 
 #include <pybind11/pybind11.h>
 
-typedef std::function< pybind11::module & (std::string const &) > ModuleGetter;
+using ModuleGetter = std::function< pybind11::module & (std::string const &) >;
 
 void bind_T60_pybind11(std::function< pybind11::module &(std::string const &namespace_) > &M);
 
@@ -125,13 +125,13 @@ PYBIND11_MODULE(T60_pybind11, root_module) {
 	auto mangle_namespace_name(
 		[](std::string const &ns) -> std::string {
 			if ( std::find(reserved_python_words.begin(), reserved_python_words.end(), ns) == reserved_python_words.end() ) return ns;
-			else return ns+'_';
+			return ns+'_';
 		}
 	);
 
 	std::vector< std::pair<std::string, std::string> > sub_modules {
 	};
-	for(auto &p : sub_modules ) modules[p.first.size() ? p.first+"::"+p.second : p.second] = modules[p.first].def_submodule( mangle_namespace_name(p.second).c_str(), ("Bindings for " + p.first + "::" + p.second + " namespace").c_str() );
+	for(auto &p : sub_modules ) modules[ p.first.empty() ? p.second :  p.first+"::"+p.second ] = modules[p.first].def_submodule( mangle_namespace_name(p.second).c_str(), ("Bindings for " + p.first + "::" + p.second + " namespace").c_str() );
 
 	//pybind11::class_<std::shared_ptr<void>>(M(""), "_encapsulated_data_");
 

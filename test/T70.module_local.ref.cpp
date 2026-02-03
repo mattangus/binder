@@ -8,14 +8,14 @@
 
 #ifndef BINDER_PYBIND11_TYPE_CASTER
 	#define BINDER_PYBIND11_TYPE_CASTER
-	PYBIND11_DECLARE_HOLDER_TYPE(T, std::shared_ptr<T>)
-	PYBIND11_DECLARE_HOLDER_TYPE(T, T*)
+	PYBIND11_DECLARE_HOLDER_TYPE(T, std::shared_ptr<T>, false)
+	PYBIND11_DECLARE_HOLDER_TYPE(T, T*, false)
 	PYBIND11_MAKE_OPAQUE(std::shared_ptr<void>)
 #endif
 
 void bind_T70_module_local(std::function< pybind11::module &(std::string const &namespace_) > &M)
 {
-	{ // aaa::A file:T70.module_local.hpp line:16
+	{ // aaa::A file:T70.module_local.hpp line:
 		pybind11::class_<aaa::A, std::shared_ptr<aaa::A>> cl(M("aaa"), "A", "", pybind11::module_local());
 		cl.def( pybind11::init( [](){ return new aaa::A(); } ) );
 		cl.def("foo", (void (aaa::A::*)()) &aaa::A::foo, "C++: aaa::A::foo() --> void");
@@ -33,14 +33,14 @@ void bind_T70_module_local(std::function< pybind11::module &(std::string const &
 
 #ifndef BINDER_PYBIND11_TYPE_CASTER
 	#define BINDER_PYBIND11_TYPE_CASTER
-	PYBIND11_DECLARE_HOLDER_TYPE(T, std::shared_ptr<T>)
-	PYBIND11_DECLARE_HOLDER_TYPE(T, T*)
+	PYBIND11_DECLARE_HOLDER_TYPE(T, std::shared_ptr<T>, false)
+	PYBIND11_DECLARE_HOLDER_TYPE(T, T*, false)
 	PYBIND11_MAKE_OPAQUE(std::shared_ptr<void>)
 #endif
 
 void bind_T70_module_local_1(std::function< pybind11::module &(std::string const &namespace_) > &M)
 {
-	{ // bbb::B file:T70.module_local.hpp line:24
+	{ // bbb::B file:T70.module_local.hpp line:
 		pybind11::class_<bbb::B, std::shared_ptr<bbb::B>> cl(M("bbb"), "B", "");
 		cl.def( pybind11::init( [](){ return new bbb::B(); } ) );
 		cl.def("foo", (void (bbb::B::*)()) &bbb::B::foo, "C++: bbb::B::foo() --> void");
@@ -57,7 +57,7 @@ void bind_T70_module_local_1(std::function< pybind11::module &(std::string const
 
 #include <pybind11/pybind11.h>
 
-typedef std::function< pybind11::module & (std::string const &) > ModuleGetter;
+using ModuleGetter = std::function< pybind11::module & (std::string const &) >;
 
 void bind_T70_module_local(std::function< pybind11::module &(std::string const &namespace_) > &M);
 void bind_T70_module_local_1(std::function< pybind11::module &(std::string const &namespace_) > &M);
@@ -80,7 +80,7 @@ PYBIND11_MODULE(T70_module_local, root_module) {
 	auto mangle_namespace_name(
 		[](std::string const &ns) -> std::string {
 			if ( std::find(reserved_python_words.begin(), reserved_python_words.end(), ns) == reserved_python_words.end() ) return ns;
-			else return ns+'_';
+			return ns+'_';
 		}
 	);
 
@@ -88,7 +88,7 @@ PYBIND11_MODULE(T70_module_local, root_module) {
 		{"", "aaa"},
 		{"", "bbb"},
 	};
-	for(auto &p : sub_modules ) modules[p.first.size() ? p.first+"::"+p.second : p.second] = modules[p.first].def_submodule( mangle_namespace_name(p.second).c_str(), ("Bindings for " + p.first + "::" + p.second + " namespace").c_str() );
+	for(auto &p : sub_modules ) modules[ p.first.empty() ? p.second :  p.first+"::"+p.second ] = modules[p.first].def_submodule( mangle_namespace_name(p.second).c_str(), ("Bindings for " + p.first + "::" + p.second + " namespace").c_str() );
 
 	//pybind11::class_<std::shared_ptr<void>>(M(""), "_encapsulated_data_");
 

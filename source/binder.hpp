@@ -16,9 +16,9 @@
 #include <clang/AST/Decl.h>
 #include <clang/AST/DeclCXX.h>
 
-#include <llvm/Support/raw_ostream.h>
 #include <llvm/ADT/DenseMap.h>
-//#include <tsl/robin_map.h>
+#include <llvm/Support/raw_ostream.h>
+// #include <tsl/robin_map.h>
 
 #include <string>
 #include <unordered_map>
@@ -48,14 +48,29 @@ public:
 private:
 	std::vector<std::string> includes_;
 
-	//using StackType = std::unordered_map<clang::NamedDecl const *, int>;
+	// using StackType = std::unordered_map<clang::NamedDecl const *, int>;
 	using StackType = llvm::DenseMap<clang::NamedDecl const *, int>;
-	//using StackType = tsl::robin_map<clang::NamedDecl const *, int>;
+	// using StackType = tsl::robin_map<clang::NamedDecl const *, int>;
 
 	StackType stack_;
 
 	friend void add_relevant_includes_cached(clang::CXXRecordDecl const *C, IncludeSet &includes);
 };
+
+
+enum RequestFlags : int8_t {
+	none = 0,
+	skipping = 1,
+	binding = 2,
+};
+inline RequestFlags operator|(RequestFlags a, RequestFlags b)
+{
+	return static_cast<RequestFlags>(static_cast<int>(a) | static_cast<int>(b));
+}
+inline RequestFlags operator&(RequestFlags a, RequestFlags b)
+{
+	return static_cast<RequestFlags>(static_cast<int>(a) & static_cast<int>(b));
+}
 
 /// Bindings Generator - represent object that can generate binding info for function, class, enum or data variable
 class Binder
@@ -83,8 +98,9 @@ public:
 	/// request skipping for this generator
 	void request_skipping() { skipping_requested_ = true; }
 
+
 	/// check if user supplied config requested binding for the given declaration and if so request it
-	virtual void request_bindings_and_skipping(Config const &) = 0;
+	virtual void request_bindings_and_skipping(Config const &, RequestFlags flags = RequestFlags::skipping | RequestFlags::binding) = 0;
 
 	/// extract include needed for this generator and add it to includes vector
 	virtual void add_relevant_includes(IncludeSet &) const = 0;

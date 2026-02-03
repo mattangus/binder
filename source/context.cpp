@@ -89,7 +89,7 @@ const char *main_module_header = R"_(#include <map>
 
 {0}
 
-typedef std::function< pybind11::module & (std::string const &) > ModuleGetter;
+using ModuleGetter = std::function< pybind11::module & (std::string const &) >;
 
 {1}
 
@@ -110,13 +110,13 @@ PYBIND11_MODULE({2}, root_module) {{
 	auto mangle_namespace_name(
 		[](std::string const &ns) -> std::string {{
 			if ( std::find(reserved_python_words.begin(), reserved_python_words.end(), ns) == reserved_python_words.end() ) return ns;
-			else return ns+'_';
+			return ns+'_';
 		}}
 	);
 
 	std::vector< std::pair<std::string, std::string> > sub_modules {{
 {3}	}};
-	for(auto &p : sub_modules ) modules[p.first.size() ? p.first+"::"+p.second : p.second] = modules[p.first].def_submodule( mangle_namespace_name(p.second).c_str(), ("Bindings for " + p.first + "::" + p.second + " namespace").c_str() );
+	for(auto &p : sub_modules ) modules[ p.first.empty() ? p.second :  p.first+"::"+p.second ] = modules[p.first].def_submodule( mangle_namespace_name(p.second).c_str(), ("Bindings for " + p.first + "::" + p.second + " namespace").c_str() );
 
 	//pybind11::class_<std::shared_ptr<void>>(M(""), "_encapsulated_data_");
 
@@ -132,7 +132,7 @@ const char *module_header = R"_(
 #ifndef BINDER_PYBIND11_TYPE_CASTER
 	#define BINDER_PYBIND11_TYPE_CASTER
 	{2}
-	PYBIND11_DECLARE_HOLDER_TYPE(T, T*)
+	PYBIND11_DECLARE_HOLDER_TYPE(T, T*, false)
 	{3}
 #endif
 
@@ -251,7 +251,10 @@ void Context::bind(Config const &config)
 {
 	for( auto &sp : binders ) {
 		Binder &b(*sp);
-		if( !b.is_in_system_header() and b.bindable() ) b.request_bindings_and_skipping(config);
+		if( b.bindable() ) {
+			if( b.is_in_system_header() ) b.request_bindings_and_skipping(config, RequestFlags::skipping);
+			else b.request_bindings_and_skipping(config);
+		}
 	}
 
 	bool flag = true;
@@ -434,11 +437,12 @@ void Context::generate(Config const &config)
 
 		string const holder_type = Config::get().holder_type();
 
-		string shared_declare = "PYBIND11_DECLARE_HOLDER_TYPE(T, "+holder_type+"<T>)";
-		string shared_make_opaque = "PYBIND11_MAKE_OPAQUE("+holder_type+"<void>)";
+		string shared_declare = "PYBIND11_DECLARE_HOLDER_TYPE(T, " + holder_type + "<T>, false)";
+		string shared_make_opaque = "PYBIND11_MAKE_OPAQUE(" + holder_type + "<void>)";
 
 		string const pybind11_include = "#include <" + Config::get().pybind11_include_file() + ">";
-		code = generate_include_directives(includes) + fmt::format(module_header, pybind11_include, config.includes_code(), shared_declare, shared_make_opaque) + prefix_code + "void " + function_name + module_function_suffix + "\n{\n" + code + "}\n";
+		code = generate_include_directives(includes) + fmt::format(module_header, pybind11_include, config.includes_code(), shared_declare, shared_make_opaque) + prefix_code + "void " +
+			   function_name + module_function_suffix + "\n{\n" + code + "}\n";
 
 		if( O_single_file ) root_module_file_handle << "// File: " << file_name << '\n' << code << "\n\n";
 		else update_source_file(config.prefix, file_name, code);
