@@ -153,6 +153,7 @@ void add_relevant_include_for_decl(NamedDecl const *decl, IncludeSet &includes /
 			{"<thread>",
 			 {
 				 "std::thread::id",
+				 "std::thread",
 			 }},
 
 			{"<cwchar>", {"std::mbstate_t"}},
@@ -162,7 +163,7 @@ void add_relevant_include_for_decl(NamedDecl const *decl, IncludeSet &includes /
 			{"<mutex>",
 			 {
 				 "std::mutex",
-				 " std::adopt_lock",
+				 "std::adopt_lock",
 				 "std::adopt_lock_t",
 				 "std::defer_lock",
 				 "std::defer_lock_t",
