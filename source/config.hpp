@@ -58,6 +58,7 @@ private:
 	string prefix_for_static_member_functions_ = "";
 
 	std::vector<string> enums_to_bind, enums_to_skip;
+	std::set<string> namespaces_to_flatten;
 
 public:
 	static Config &get();
@@ -120,6 +121,8 @@ public:
 	bool is_smart_holder_requested(string const &class_) const;
 
 	bool is_include_skipping_requested(string const &include) const;
+
+	bool is_namespace_flatten_requested(string const &namespace_) const;
 
 	string is_custom_trampoline_function_requested(string const &function__) const;
 

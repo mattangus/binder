@@ -250,6 +250,9 @@ std::set<string> Context::create_all_nested_namespaces()
 
 std::string Context::module_variable_name(std::string const &namespace_)
 {
+	if (Config::get().is_namespace_flatten_requested(namespace_)) {
+		return "M(\"\")";
+	}
 	return "M(\"" + namespace_ + "\")";
 }
 

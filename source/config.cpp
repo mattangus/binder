@@ -95,6 +95,8 @@ void Config::read(string const &file_name)
 
 	string const _prefix_for_static_member_functions_{"prefix_for_static_member_functions"};
 
+	string const _flatten_namespace_{"flatten_namespace"};
+
 	std::ifstream f(file_name);
 
 	if( not f.good() ) { throw std::runtime_error("can not open file " + file_name + " for reading..."); }
@@ -240,6 +242,9 @@ void Config::read(string const &file_name)
 					name, "Invalid line for trampoline_member_function_binder specification! Must be: qualified_class_name::member_funtion_name + <space or tab> + name_of_function. Got: " + line);
 				custom_trampoline_functions_[member_function_name_and_function_name.first] = member_function_name_and_function_name.second;
 			}
+		}
+		else if( token == _flatten_namespace_ ) {
+			namespaces_to_flatten.insert(name_without_spaces);
 		}
 
 		else {
@@ -472,6 +477,13 @@ bool Config::is_include_skipping_requested(string const &include) const
 		if( begins_with(include, i) ) return true;
 
 	return false;
+}
+
+
+
+bool Config::is_namespace_flatten_requested(string const &namespace_) const
+{
+	return namespaces_to_flatten.count(namespace_) != 0;
 }
 
 
