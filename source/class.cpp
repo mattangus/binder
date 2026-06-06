@@ -439,6 +439,7 @@ bool is_skipping_requested(clang::CXXRecordDecl const *C, Config const &config)
 void add_relevant_includes(clang::CXXRecordDecl const *C, IncludeSet &includes, int level)
 {
 	if( !includes.add_decl(C, level) ) return;
+	if( is_skipping_requested(C, Config::get()) ) return;
 
 	add_relevant_include_for_decl(C, includes);
 
