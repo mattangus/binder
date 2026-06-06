@@ -229,6 +229,9 @@ void add_relevant_include_for_decl(NamedDecl const *decl, IncludeSet &includes /
 		make_pair("<bits/pthreadtypes.h>", "<pthread.h>"),
 		make_pair("<bits/gthr-default.h>", "<pthread.h>"),
 		make_pair("<bits/random.h>", "<random>"),
+		make_pair("<bits/chrono.h>", "<chrono>"),
+		make_pair("<bits/fs_path.h>", "<filesystem>"),
+		make_pair("<bits/refwrap.h>", "<functional>"),
 
 		make_pair("<bits/basic_string.h>", "<string>"),
 		make_pair("<bits/basic_string.tcc>", "<string>"),
@@ -356,8 +359,6 @@ void add_relevant_include_for_decl(NamedDecl const *decl, IncludeSet &includes /
 	}
 
 
-
-
 	string include = relevant_include(decl);
 
 	for( auto &i : include_map ) {
@@ -365,6 +366,11 @@ void add_relevant_include_for_decl(NamedDecl const *decl, IncludeSet &includes /
 			include = i.second;
 			break;
 		}
+	}
+
+	if (begins_with(include, "<bits/")) {
+		outs() << "WARNING: include for '" << name << "' is from "
+			   << include << ". It is likely that there is something missing in the include map.\n";
 	}
 
 	if( include.size() ) {
@@ -680,11 +686,29 @@ string simplify_std_class_name(string const &type)
 	// }
 }
 
+bool is_unique_ptr(clang::QualType const &qt)
+{
+	string name = standard_name(qt.getAsString());
+	static std::array<string, 4> const unique_variants = {
+		"std::unique_ptr",
+		"class std::unique_ptr",
+		"const std::unique_ptr",
+		"const class std::unique_ptr"
+	};
+	bool is_unique = false;
+	for (auto unique : unique_variants)
+		is_unique |= name.rfind(unique, 0) == 0;
+
+	// outs() << "checking if " << name << " is unique " << is_unique << "\n";
+	return is_unique;
+}
 
 /// check if given class/struct is builtin in Python and therefor should not be binded
 bool is_python_builtin(NamedDecl const *C)
 {
-	// outs() << "Considering: " << C->getQualifiedNameAsString() << "\n";
+	#ifdef DEBUG_PRINTS
+	outs() << "checking if " << C->getQualifiedNameAsString() << " is builtin with stl on: " << O_include_pybind11_stl << "\n";
+	#endif
 	string name = standard_name(C->getQualifiedNameAsString());
 	// if( begins_with(name, "class ") ) name = name.substr(6); // len("class ")
 
@@ -792,11 +816,37 @@ bool is_python_builtin(NamedDecl const *C)
 	};
 
 	// Not builtin's
-	if( Config::get().not_python_builtins.count(name) ) return false;
+	if (Config::get().not_python_builtins.count(name)) {
+		#ifdef DEBUG_PRINTS
+		outs() << name << " is on the not_python_builtins list\n";
+		#endif
+		return false;
+	}
 	// Builtins
-	if( Config::get().python_builtins.count(name) || known_builtin.count(name) ) return true;
+	if (Config::get().python_builtins.count(name) || known_builtin.count(name)) {
+		#ifdef DEBUG_PRINTS
+		outs() << name << " is either on python_builtins or known_builtin list\n";
+		#endif
+		return true;
+	}
 	// STL
-	if( O_include_pybind11_stl && stl_builtin.count(name) ) return true;
+	if (O_include_pybind11_stl && name.rfind("std::", 0) == 0) {
+		#ifdef DEBUG_PRINTS
+		outs() << name << " is a std builtin\n";
+		#endif
+		return true;
+	}
+	// Eigen, check if it's in the namespace
+	if (O_include_pybind11_eigen && name.rfind("Eigen::", 0) == 0) {
+		#ifdef DEBUG_PRINTS
+		outs() << name << " is an eigen builtin\n";
+		#endif
+		return true;
+	}
+
+	#ifdef DEBUG_PRINTS
+	outs() << name << " is not a built in\n";
+	#endif
 
 	return false;
 }

@@ -65,6 +65,8 @@ std::string standard_name(std::string const &type);
 /// Attempt to simplify std:: name by removing unneeded template arguments, assuming that there is no 'std::' namespaces prefix at the beginning of the argument string
 std::string simplify_std_class_name(std::string const &type);
 
+/// Check if this is a unique pointer
+bool is_unique_ptr(clang::QualType const &qt);
 
 /// check if given class/struct is builtin in Python and therefor should not be binded
 bool is_python_builtin(clang::NamedDecl const *C);

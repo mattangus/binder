@@ -107,4 +107,9 @@ struct ConstOverload
 	void foo(int) const {}
 };
 
+struct ConstStruct {
+  const float f1;
+};
+
+
 #endif // _INCLUDED_T07_class_hpp_

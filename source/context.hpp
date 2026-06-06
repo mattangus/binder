@@ -13,6 +13,8 @@
 #ifndef _INCLUDED_context_hpp_
 #define _INCLUDED_context_hpp_
 
+// #define DEBUG_PRINTS
+
 #include <binder.hpp>
 
 #include <clang/AST/Decl.h>

@@ -479,8 +479,9 @@ string Config::includes_code() const
 {
 	std::ostringstream s;
 	for( auto &i : includes_to_add ) s << "#include " << i << "\n";
-	if( O_include_pybind11_stl ) s << "#include <pybind11/stl.h>\n";
-	if( s.tellp() != std::streampos(0) ) s << '\n';
+	if (O_include_pybind11_stl) s << "#include <pybind11/stl.h>\n";
+	if (O_include_pybind11_eigen) s << "#include <pybind11/eigen.h>\n";
+	if (s.tellp() != std::streampos(0)) s << '\n';
 	return s.str();
 }
 

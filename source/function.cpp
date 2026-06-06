@@ -375,10 +375,17 @@ string bind_function_setter(const string &module, FunctionDecl const *F, Context
 	string function_qualified_name = standard_name(parent ? class_qualified_name(parent) + "::" + F->getNameAsString() : F->getQualifiedNameAsString());
 	CXXMethodDecl const *m = dyn_cast<CXXMethodDecl>(F);
 
-	if (F->getReturnType()->isReferenceType()) {
+	if (F->getReturnType()->isReferenceType() && !m->isConst()) {
 		const clang::QualType &qt = F->getReturnType();
 		const clang::QualType &nonRefQt = qt.getNonReferenceType();
 		const clang::Type* nonRef = nonRefQt.getTypePtr();
+
+		// outs() << " checking " << function_qualified_name
+		// 		<< "     ref " << qt.isConstQualified()
+		// 		<< " non ref " << nonRefQt.isConstQualified()
+		// 		<< " method  " << m->isConst() 
+		// 		<< "\n";
+
 		if (nonRef->isFundamentalType()) {
 
 			string function, documentation;
@@ -392,7 +399,11 @@ string bind_function_setter(const string &module, FunctionDecl const *F, Context
 			documentation = "setter for primitive reference return value {}"_format(F->getQualifiedNameAsString());
 
 			string return_type = standard_name(nonRefQt);
-			outs() << " making setter for " << function_name << " -> " << return_type << "\n";
+			// outs() << " making setter for " << F->getQualifiedNameAsString() << " -> " << return_type << "\n";
+			// outs() << " isConstExpr " << F->isConstexpr()
+			// 		<< " isConsteval " << F->isConsteval()
+			// 		<< " isConst " << m->isConst()
+			// 		<< "\n";
 			pair<string, string> args = function_arguments_for_lambda(F, 0);
 
 			string input_args = "{}, {} value"_format(args.first, return_type);
@@ -436,6 +447,12 @@ string bind_function(FunctionDecl const *F, uint args_to_bind, bool request_bind
 	string function_name = python_function_name(F);
 
 	string function_qualified_name = standard_name(parent ? class_qualified_name(parent) + "::" + F->getNameAsString() : F->getQualifiedNameAsString());
+
+	// outs() << "-- binding function " << function_qualified_name << "\n";
+
+	// if (function_qualified_name.compare("ha::Point2D<double>::operator=") == 0) {
+	// 	clang::QualType const &rt = F->getReturnType();
+	// }
 
 	CXXMethodDecl const *m = dyn_cast<CXXMethodDecl>(F);
 
@@ -532,13 +549,18 @@ string bind_function(string const &module, FunctionDecl const *F, Context &conte
 		}
 	}
 
-	code += bind_function_setter(module, F, context, parent);
+	if (num_params == 0)
+		code += bind_function_setter(module, F, context, parent);
 
 	for( ; args_to_bind < num_params; ++args_to_bind ) {
 		if( F->getParamDecl(args_to_bind)->hasDefaultArg() ) break;
 	}
 
-	for( ; args_to_bind <= num_params; ++args_to_bind ) code += module + bind_function(F, args_to_bind, args_to_bind == num_params, context, parent, always_use_lambda or F->isVariadic()) + '\n';
+	for( ; args_to_bind <= num_params; ++args_to_bind ) {
+		code += module + bind_function(F, args_to_bind, args_to_bind == num_params, context, parent, always_use_lambda or F->isVariadic()) + '\n';
+		if (args_to_bind < num_params && !is_bindable(F->getParamDecl(args_to_bind)->getOriginalType().getCanonicalType()))
+			break; // if we find a non bindable param, break out
+	}
 
 	return code;
 }
@@ -565,7 +587,14 @@ string FunctionBinder::id() const
 /// check if generator can create binding
 bool is_bindable_raw(FunctionDecl const *F)
 {
-	// outs() << "is_bindable: " << F->getQualifiedNameAsString() << "\n";
+	#ifdef DEBUG_PRINTS
+	outs() << "is_bindable_raw " << F->getQualifiedNameAsString()
+			<< " -- F->isDeleted():" << F->isDeleted()
+			<< " -- F->isOverloadedOperator():" << F->isOverloadedOperator()
+			<< " -- F->getTemplatedKind() != FunctionDecl::TK_FunctionTemplate:" << (F->getTemplatedKind() != FunctionDecl::TK_FunctionTemplate)
+			<< " -- is_banned_symbol(F):" << is_banned_symbol(F)
+			<< "\n";
+	#endif
 	// if( F->getQualifiedNameAsString() == "utility::foo" ) {
 	// 	//outs() << "FunctionDecl::TK_FunctionTemplate: " << F->getQualifiedNameAsString() << "\n";
 	// 	F->dump();
@@ -594,16 +623,32 @@ bool is_bindable_raw(FunctionDecl const *F)
 
 	r &= is_bindable(rt);
 
-	for( auto p = F->param_begin(); p != F->param_end(); ++p ) r &= is_bindable((*p)->getOriginalType().getCanonicalType());
+	for(auto p = F->param_begin(); p != F->param_end(); ++p ) {
+		if( (*p)->hasDefaultArg() ) // if there is a default arg skip the check
+			break;
+		auto C = (*p)->getOriginalType().getCanonicalType();
+		// pybind11 doesn't allow unique_ptr as an argument
+		// https://pybind11.readthedocs.io/en/stable/advanced/smart_ptrs.html#std-unique-ptr
+		// outs() << "checking arg " << p->getQualifiedNameAsString() << "\n";
+		r &= is_bindable(C) && !is_unique_ptr((*p)->getOriginalType());
+	}
+
+	// for( auto p = F->param_begin(); p != F->param_end(); ++p ) r &= is_bindable((*p)->getOriginalType().getCanonicalType());
 	// outs() << "is_bindable: " << F->getQualifiedNameAsString() << " " << r << "\n";
 
 	if( r && is_banned_symbol(F) ) return false;
+	#ifdef DEBUG_PRINTS
+	outs() << "is bindable: " << r << "\n";
+	#endif
 	return r;
 }
 
 /// check if generator can create binding
 bool is_bindable(FunctionDecl const *F)
 {
+	#ifdef DEBUG_PRINTS
+	outs() << "is_bindable_raw " << F->getQualifiedNameAsString() << "\n";
+	#endif
 	static llvm::DenseMap<FunctionDecl const *, bool> cache;
 	auto it = cache.find(F);
 	if( it != cache.end() ) return it->second;

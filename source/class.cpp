@@ -237,6 +237,9 @@ bool is_bindable_raw(clang::CXXRecordDecl const *C);
 /// check if generator can create binding
 bool is_bindable(clang::CXXRecordDecl const *C)
 {
+	#ifdef DEBUG_PRINTS
+	outs() << "is_bindable " << C->getQualifiedNameAsString() << template_specialization(C) << "\n";
+	#endif
 	static llvm::DenseMap<CXXRecordDecl const *, bool> cache;
 	auto it = cache.find(C);
 	if( it != cache.end() ) return it->second;
@@ -260,14 +263,15 @@ bool is_bindable(clang::CXXRecordDecl const *C)
 bool is_bindable_raw(clang::CXXRecordDecl const *C)
 {
 	bool r = true;
-
-	// outs() << "is_bindable(CXXRecordDecl): " << C->getQualifiedNameAsString() << template_specialization(C)
-	// 	   << " C->hasDefinition():" << C->hasDefinition()
-	// 	   << " C->isCompleteDefinition():" << C->isCompleteDefinition()
-	// 	   // << " C->isThisDeclarationADefinition():" << C->isThisDeclarationADefinition()
-	// 	   // << " C->getDefinition():" << C->getDefinition()
-	// 	   << " C->isDependentType():" << C->isDependentType()
-	// 	   <<"\n";
+	#ifdef DEBUG_PRINTS
+	outs() << "is_bindable_raw(CXXRecordDecl): " << C->getQualifiedNameAsString() << template_specialization(C)
+		   << " -- C->hasDefinition():" << C->hasDefinition()
+		   << " -- C->isCompleteDefinition():" << C->isCompleteDefinition()
+		   << " -- C->isThisDeclarationADefinition():" << C->isThisDeclarationADefinition()
+		   << " -- C->getDefinition():" << C->getDefinition()
+		   << " -- C->isDependentType():" << C->isDependentType()
+		   <<"\n";
+	#endif
 	string qualified_name = C->getQualifiedNameAsString();
 	// if( qualified_name != "std::pair"  and  qualified_name != "std::tuple" ) {
 	// 	if( C->isDependentType() ) return false;
@@ -283,34 +287,76 @@ bool is_bindable_raw(clang::CXXRecordDecl const *C)
 
 	// disabling bindings for anonymous namespace's
 	// if( qualified_name.rfind("(anonymous namespace)") != std::string::npos ) return false;
-	if( C->isInAnonymousNamespace() ) return false;
+	if( C->isInAnonymousNamespace() ) {
+		#ifdef DEBUG_PRINTS
+		outs() << "cant bind because isInAnonymousNamespace\n";
+		#endif
+		return false;
+	}
 	// if( C->isAnonymousStructOrUnion() ) return false;
-	if( !C->hasNameForLinkage() and !C->isCXXClassMember() ) return false;
+	if( !C->hasNameForLinkage() and !C->isCXXClassMember() ) {
+		#ifdef DEBUG_PRINTS
+		outs() << "cant bind because !hasNameForLinkage and !isCXXClassMember\n";
+		#endif
+		return false;
+	}
 
 	bool anonymous_name = qualified_name.rfind(')') != std::string::npos; // check if type name is "(anonymous)"
-	if( anonymous_name and C->hasNameForLinkage() ) return false;
-	if( anonymous_name and !C->hasNameForLinkage() and !C->isAnonymousStructOrUnion() ) return false;
+	if( anonymous_name and C->hasNameForLinkage() ) {
+		#ifdef DEBUG_PRINTS
+		outs() << "cant bind because anonymous_name and hasNameForLinkage\n";
+		#endif
+		return false;
+	}
+	if( anonymous_name and !C->hasNameForLinkage() and !C->isAnonymousStructOrUnion() ) {
+		#ifdef DEBUG_PRINTS
+		outs() << "cant bind because anonymous_name and !hasNameForLinkage and !isAnonymousStructOrUnion\n";
+		#endif
+		return false;
+	}
 
 	// if( C->isAnonymousStructOrUnion() and C->hasNameForLinkage() ) return false;
 
 	// outs() << qualified_name << ": anonymous_name:" << anonymous_name << " isAnonymousStructOrUnion: " << C->isAnonymousStructOrUnion() << " hasNameForLinkage:" << C->hasNameForLinkage() << "\n";
 
-	if( C->isDependentType() ) return false;
-	if( C->getAccess() == AS_protected or C->getAccess() == AS_private ) return false;
+	if( C->isDependentType() ) {
+		#ifdef DEBUG_PRINTS
+		outs() << "cant bind because isDependentType\n";
+		#endif
+		return false;
+	}
+	if( C->getAccess() == AS_protected or C->getAccess() == AS_private ) {
+		#ifdef DEBUG_PRINTS
+		outs() << "cant bind because access is private or protected\n";
+		#endif
+		return false;
+	}
 
 	if( !C->isCompleteDefinition() ) {
 		if( auto ts = dyn_cast<ClassTemplateSpecializationDecl>(C) ) {
 			if( qualified_name == "std::function" ) {
-				if( not is_std_function_bindable(C) ) return false;
+				if( not is_std_function_bindable(C) ) {
+					#ifdef DEBUG_PRINTS
+					outs() << "cant bind because std::function is not bindable\n";
+					#endif
+					return false;
+				}
 			}
 			else {
 				if( ts->getPointOfInstantiation() /* SourceLocation */.isInvalid() and not is_python_builtin(C) ) {
-					// outs() << "is_bindable( " << qualified_name << " " << class_qualified_name(C) << " ): no point of instantiation  found, skipping...\n";
+					#ifdef DEBUG_PRINTS
+					outs() << "is_bindable( " << qualified_name << " " << class_qualified_name(C) << " ): no point of instantiation  found, skipping...\n";
+					#endif
 					return false;
 				}
 			}
 		}
-		else return false;
+		else {
+			#ifdef DEBUG_PRINTS
+			outs() << "cant bind because no complete definition and is not ClassTemplateSpecializationDecl\n";
+			#endif
+			return false;
+		}
 	}
 
 	// if( auto t = dyn_cast<ClassTemplateSpecializationDecl>(C) ) {
@@ -339,7 +385,16 @@ bool is_bindable_raw(clang::CXXRecordDecl const *C)
 	// 	}
 	// }
 
-	if( r && is_banned_symbol(C) ) return false;
+	if( r && is_banned_symbol(C) ) {
+		#ifdef DEBUG_PRINTS
+		outs() << "cant bind because it is a band symbol\n";
+		#endif
+		return false;
+	}
+
+	#ifdef DEBUG_PRINTS
+	outs() << "result: " << r << "\n";
+	#endif
 
 	return r;
 }
@@ -1111,7 +1166,7 @@ string bind_default_constructor(ConstructorBindingInfo const &CBI) // CXXRecordD
 
 /// Generate copy constructor in most cases this will be just: "\tcl.def(pybind11::init<{} const &>());\n"_format(binding_qualified_name);
 /// but for POD structs with zero data mambers this will be a lambda function. This is done as a workaround for Pybind11 2,2+ bug
-string bind_copy_constructor(ConstructorBindingInfo const &CBI) // CXXConstructorDecl const *T, string const & binding_qualified_name)
+string bind_copy_constructor(ConstructorBindingInfo const &CBI, bool should_make_default_constructor) // CXXConstructorDecl const *T, string const & binding_qualified_name)
 {
 	string code;
 	if( O_annotate_functions ) {
@@ -1146,17 +1201,23 @@ string bind_copy_constructor(ConstructorBindingInfo const &CBI) // CXXConstructo
 	if( typequals == Qualifiers::TQ::Const ) { const_bit += " const"; }
 
 	if( CBI.trampoline ) {
-		if( CBI.C->isAbstract() ) code += "\tcl.def(pybind11::init<{}{} &>());\n"_format(CBI.trampoline_qualified_name, const_bit);
+		// outs() << "-- binding constructor " << CBI.trampoline_qualified_name << "\n";
+		if( CBI.C->isAbstract() ) return code + "\tcl.def(pybind11::init<{}{} &>());\n"_format(CBI.trampoline_qualified_name, const_bit);
 		else {
 			// not yet supported by Pybind11? return "\tcl.def( pybind11::init( []({0} const &o){{ return new {0}(o); }}, []({1} const &o){{ return new {1}(o); }} )
 			// );\n"_format(CBI.class_qualified_name, CBI.binding_qualified_name);
-			code += "\tcl.def( pybind11::init( []({0}{1} &o){{ return new {0}(o); }} ) );\n"_format(CBI.trampoline_qualified_name, const_bit) +
-					(CBI.T->getAccess() == AS_public ? "\tcl.def( pybind11::init( []({0}{1} &o){{ return new {0}(o); }} ) );\n"_format(CBI.class_qualified_name, const_bit) : "");
+			return code + "\tcl.def( pybind11::init( []({0}{1} &o){{ return new {0}(o); }} ) );\n"_format(CBI.trampoline_qualified_name, const_bit) +
+				   (CBI.T->getAccess() == AS_public ? "\tcl.def( pybind11::init( []({0}{1} &o){{ return new {0}(o); }} ) );\n"_format(CBI.class_qualified_name, const_bit) : "");
+
 		}
 	}
-	else code += "\tcl.def( pybind11::init( []({0}{1} &o){{ return new {0}(o); }} ) );\n"_format(CBI.class_qualified_name, const_bit);
+	else if (should_make_default_constructor) {
+		// outs() << "-- binding constructor " << CBI.class_qualified_name << "\n";
 
-	return code;
+		return code + "\tcl.def( pybind11::init( []({0}{1} &o){{ return new {0}(o); }} ) );\n"_format(CBI.class_qualified_name, const_bit);
+	}
+
+	return "";
 }
 
 // Generate binding for given constructor. If constructor have default arguments generate set of bindings by creating separate bindings for each argument with default.
@@ -1169,7 +1230,11 @@ string bind_constructor(ConstructorBindingInfo const &CBI)
 		if( CBI.T->getParamDecl(args_to_bind)->hasDefaultArg() ) break;
 	}
 
-	for( ; args_to_bind <= CBI.T->getNumParams(); ++args_to_bind ) code += bind_constructor(CBI, args_to_bind, args_to_bind == CBI.T->getNumParams()) + '\n';
+	for( ; args_to_bind <= CBI.T->getNumParams(); ++args_to_bind ) {
+		code += bind_constructor(CBI, args_to_bind, args_to_bind == CBI.T->getNumParams()) + '\n';
+		if (args_to_bind < CBI.T->getNumParams() && !is_bindable(CBI.T->getParamDecl(args_to_bind)->getOriginalType().getCanonicalType()))
+			break; // if we find a non bindable param, break out
+	}
 
 	return code;
 }
@@ -1324,14 +1389,34 @@ void ClassBinder::bind(Context &context)
 			if( t->getAccess() == AS_public and !t->isMoveConstructor() and is_bindable(*t) and !is_skipping_requested(*t, Config::get()) /*and  t->doesThisDeclarationHaveABody()*/ ) {
 				ConstructorBindingInfo CBI = {C, *t, trampoline, qualified_name, trampoline_name, context};
 
-				if( t->isCopyConstructor() /*and  not copy_constructor_processed*/ and !is_skipping_requested(*t, Config::get()) ) {
+				if( t->isCopyConstructor() /*and  not copy_constructor_processed*/ /*&& C->isTriviallyCopyable()*/ ) {
 					// constructors += "\tcl.def(pybind11::init<{} const &>());\n"_format(binding_qualified_name);
 					//(*t) -> dump();
-					// constructors += "// CC " + standard_name(t->getQualifiedNameAsString()) + "\n";
-					// constructors += "// CC " + function_qualified_name(*t, true) + "\n";
-					constructors += bind_copy_constructor(CBI);
-					// constructors += "// CC \n";
-					//  copy_constructor_processed = true;
+					// outs() << " binding copy constructor \"" << qualified_name << "\": {"
+					// 			<< " \"defaultedCopyConstructorIsDeleted\": " << C->defaultedCopyConstructorIsDeleted() << ", "
+					// 			<< " \"hasSimpleCopyConstructor\": " << C->hasSimpleCopyConstructor() << ", "
+					// 			<< " \"hasSimpleCopyAssignment\": " << C->hasSimpleCopyAssignment() << ", "
+					// 			<< " \"hasUserDeclaredCopyConstructor\": " << C->hasUserDeclaredCopyConstructor() << ", "
+					// 			<< " \"needsImplicitCopyConstructor\": " << C->needsImplicitCopyConstructor() << ", "
+					// 			<< " \"needsOverloadResolutionForCopyConstructor\": " << C->needsOverloadResolutionForCopyConstructor() << ", "
+					// 			<< " \"implicitCopyConstructorHasConstParam\": " << C->implicitCopyConstructorHasConstParam() << ", "
+					// 			<< " \"hasCopyConstructorWithConstParam\": " << C->hasCopyConstructorWithConstParam() << ", "
+					// 			<< " \"hasUserDeclaredCopyAssignment\": " << C->hasUserDeclaredCopyAssignment() << ", "
+					// 			<< " \"needsImplicitCopyAssignment\": " << C->needsImplicitCopyAssignment() << ", "
+					// 			<< " \"needsOverloadResolutionForCopyAssignment\": " << C->needsOverloadResolutionForCopyAssignment() << ", "
+					// 			<< " \"implicitCopyAssignmentHasConstParam\": " << C->implicitCopyAssignmentHasConstParam() << ", "
+					// 			<< " \"hasCopyAssignmentWithConstParam\": " << C->hasCopyAssignmentWithConstParam() << ", "
+					// 			<< " \"hasConstexprNonCopyMoveConstructor\": " << C->hasConstexprNonCopyMoveConstructor() << ", "
+					// 			<< " \"hasTrivialCopyConstructor\": " << C->hasTrivialCopyConstructor() << ", "
+					// 			<< " \"hasTrivialCopyConstructorForCall\": " << C->hasTrivialCopyConstructorForCall() << ", "
+					// 			<< " \"hasNonTrivialCopyConstructor\": " << C->hasNonTrivialCopyConstructor() << ", "
+					// 			<< " \"hasNonTrivialCopyConstructorForCall\": " << C->hasNonTrivialCopyConstructorForCall() << ", "
+					// 			<< " \"hasTrivialCopyAssignment\": " << C->hasTrivialCopyAssignment() << ", "
+					// 			<< " \"hasNonTrivialCopyAssignment\": " << C->hasNonTrivialCopyAssignment() << ", "
+					// 			<< " \"isTriviallyCopyable\": " << C->isTriviallyCopyable() << ", "
+					// 			<< "},\n";
+					constructors += bind_copy_constructor(CBI, C->isTriviallyCopyable());
+					// copy_constructor_processed = true;
 				}
 				else if( t->isDefaultConstructor() and t->getNumParams() == 0 ) constructors += bind_default_constructor(CBI); // workaround for Pybind11-2.2 issues
 				else constructors += bind_constructor(CBI);
@@ -1368,7 +1453,23 @@ void ClassBinder::bind(Context &context)
 		// c += "\t// hasDefaultConstructor={} needsImplicitDefaultConstructor={} base_default_default_constructor_available={}\n"_format(C->hasDefaultConstructor(),
 		// C->needsImplicitDefaultConstructor(), base_default_default_constructor_available(C));
 
-		if( !default_constructor_processed and C->needsImplicitDefaultConstructor() and base_default_default_constructor_available(C)
+		const auto base_default_available = base_default_default_constructor_available(C);
+
+		#ifdef DEBUG_PRINTS
+			outs() <<  "binding " << binding_qualified_name << ":\n"
+				<< "   hasDefaultConstructor: " << C->hasDefaultConstructor() << "\n"
+				<< "   needsImplicitDefaultConstructor: " << C->needsImplicitDefaultConstructor() << "\n"
+				<< "   hasNonTrivialDefaultConstructor: " << C->hasNonTrivialDefaultConstructor() << "\n"
+				<< "   base_default_default_constructor_available: " << base_default_available << "\n"
+				<< "   ctors empty: " << C->ctors().empty() << "\n";
+
+			outs() << "ctors default constructable:\n";
+			for (const auto ctors : C->ctors()) {
+				outs() << ctors->isDefaultConstructor() << "\n";
+			}
+		#endif
+
+		if( !default_constructor_processed and C->needsImplicitDefaultConstructor() and base_default_available and !C->ctors().empty()
 			// ( C->ctor_begin() == C->ctor_end() and  is_default_default_constructor_available(C)  and  !default_constructor_processed)
 			// or (C->hasDefaultConstructor()  and  !default_constructor_processed )
 
@@ -1378,7 +1479,7 @@ void ClassBinder::bind(Context &context)
 			/*and  !C->needsImplicitDefaultConstructor() and !C->hasNonTrivialDefaultConstructor()*/
 		) { // No constructors defined, adding default constructor
 
-			// c += "\tcl.def(pybind11::init<>());__\n";  // making sure that default is appering first
+			// c += "\tcl.def(pybind11::init<>());__\n";  // making sure that default is appearing first
 			c += bind_default_constructor(ConstructorBindingInfo{C, nullptr, trampoline, qualified_name, trampoline_name, context}); // making sure that default is appering first
 		}
 		c += constructors;
