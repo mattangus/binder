@@ -250,10 +250,41 @@ std::set<string> Context::create_all_nested_namespaces()
 
 std::string Context::module_variable_name(std::string const &namespace_)
 {
+	// short circut if it matches the whole namespace
 	if (Config::get().is_namespace_flatten_requested(namespace_)) {
 		return "M(\"\")";
 	}
-	return "M(\"" + namespace_ + "\")";
+
+    std::stringstream ss;
+
+    auto parts = split(namespace_, "::");
+    bool first = true;
+    while (parts.size() > 0) {
+        const auto cur = parts[0];
+        parts.erase(parts.begin());
+        if (first) {
+            ss << cur;
+            first = false;
+        }
+        else
+            ss << "::" << cur;
+
+        if (Config::get().is_namespace_flatten_requested(ss.str())){
+            break;
+        }
+    }
+    ss.str(std::string());
+    first = true;
+    for (const auto& p : parts) {
+        if (first) {
+            ss << p;
+            first = false;
+        }
+        else
+            ss << "::" << p;
+    }
+
+	return "M(\"" + ss.str() + "\")";
 }
 
 
